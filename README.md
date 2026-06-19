@@ -13,7 +13,7 @@
 [![Version](https://img.shields.io/badge/version-v0.2.0-blueviolet?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/releases)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v6.0.1-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://idf.espressif.com/)
 [![Platform](https://img.shields.io/badge/ESP32-classic-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/)
-[![License](https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=for-the-badge)](LICENSE)
 [![MQTT](https://img.shields.io/badge/MQTT-TLS%208883-660066?style=for-the-badge&logo=mqtt&logoColor=white)](https://mqtt.org/)
 
 </div>
@@ -35,7 +35,7 @@ Configure it once through the built-in captive portal — then forget it exists.
 ```
   [ MQTT Broker ] ──── TLS ────► [ Heimdall / ESP32 ] ──── UDP ────► [ Sleeping PC ]
                                          👁
-                                   Always Watching
+                                    Always Watching
 ```
 
 You send a command. Heimdall wakes your machine. That's it.
