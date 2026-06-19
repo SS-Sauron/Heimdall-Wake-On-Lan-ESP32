@@ -1,6 +1,6 @@
 # Heimdall — Technical Documentation
 
-This document explains how Heimdall works internally: its architecture, boot sequence, component responsibilities, configuration system, security model, and operational behaviour. It assumes you have already flashed the firmware and completed provisioning. If you haven't, start with the [main README](../README.md).
+This document explains how Heimdall works internally: its architecture, boot sequence, component responsibilities, configuration system, security model, and operational behaviour. It assumes you have already flashed the firmware and completed provisioning. If you haven't, start with the main [README](../README.md).
 
 ---
 
