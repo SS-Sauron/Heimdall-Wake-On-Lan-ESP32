@@ -1,0 +1,4 @@
+# linux target — native host executable for unit testing
+# CONFIG_IDF_TARGET is set by `idf.py --preview set-target linux`; listed here for clarity.
+CONFIG_IDF_TARGET="linux"
+CONFIG_STORAGE_NVS_NAMESPACE="wol"

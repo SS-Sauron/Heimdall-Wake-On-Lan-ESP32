@@ -70,12 +70,14 @@ jobs:
             idf.py build
             ./build/opsec_test.elf
   
-  #     - name: Build and run storage tests
-  #       uses: espressif/esp-idf-ci-action@v1
-  #       with:
-  #         esp_idf_version: v6.0.1
-  #         target: linux
-  #         command: |
-  #           cd tests/storage_test
-  #           idf.py build
-  #           ./build/storage_test.elf
+
+      - name: Build and run storage tests
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.0.1
+          target: linux
+          command: |
+            cd tests/storage_test
+            idf.py --preview set-target linux
+            idf.py build
+            ./build/storage_test.elf
