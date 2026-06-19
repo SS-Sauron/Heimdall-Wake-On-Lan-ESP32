@@ -13,16 +13,18 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include "esp_log.h"
+#ifndef CONFIG_IDF_TARGET_LINUX
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_sntp.h"
+#include "identity.h"
+#endif /* CONFIG_IDF_TARGET_LINUX */
 #define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
 #include "mbedtls/md.h"
 #include "storage.h"
 #include "opsec.h"
-#include "identity.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "opsec";
@@ -194,6 +196,12 @@ esp_err_t opsec_init(void)
 esp_err_t opsec_derive_topics(char cmd_topic[OPSEC_TOPIC_MAX_LEN],
                               char rsp_topic[OPSEC_TOPIC_MAX_LEN])
 {
+#ifdef CONFIG_IDF_TARGET_LINUX
+    /* opsec_derive_topics is not used by the linux unit-test build */
+    (void)cmd_topic;
+    (void)rsp_topic;
+    return ESP_ERR_NOT_SUPPORTED;
+#else
     /* Read effective MAC (spoofed if OPSEC_IDENTITY on, else eFuse) */
     uint8_t mac[6];
     identity_get_mac(mac);
@@ -237,6 +245,7 @@ esp_err_t opsec_derive_topics(char cmd_topic[OPSEC_TOPIC_MAX_LEN],
 #endif
 
     return ESP_OK;
+#endif /* CONFIG_IDF_TARGET_LINUX */
 }
 
 /* --------------------------------------------------------------------------
@@ -310,7 +319,7 @@ esp_err_t opsec_parse_payload(const char *payload, size_t payload_len,
  * -------------------------------------------------------------------------- */
 esp_err_t opsec_sync_clock(uint32_t timeout_ms)
 {
-#if CONFIG_OPSEC_TOTP
+#if CONFIG_OPSEC_TOTP && !defined(CONFIG_IDF_TARGET_LINUX)
     if (s_clock_synced)
         return ESP_OK;
 
@@ -338,7 +347,9 @@ esp_err_t opsec_sync_clock(uint32_t timeout_ms)
     }
     return ESP_OK;
 #else
-    s_clock_synced = true; /* Not needed in STANDARD build */
+    /* STANDARD build or linux host: clock sync is not applicable */
+    (void)timeout_ms;
+    s_clock_synced = true;
     return ESP_OK;
 #endif
 }
