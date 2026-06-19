@@ -138,13 +138,13 @@
 <div class="fixed inset-0 pointer-events-none z-0" style="background: radial-gradient(circle at 50% 50%, rgba(212,175,55,0.08) 0%, transparent 60%);"></div>
 <!-- Main Content Canvas -->
 <main class="w-full max-w-[480px] relative z-10 my-8 flex flex-col justify-center">
-<div class="bg-surface/80 backdrop-blur-xl border border-tower-grey rounded-2xl p-6 md:p-10 shadow-[0_0_15px_rgba(212,175,55,0.05)] focus-within:shadow-[0_0_40px_rgba(212,175,55,0.2)] transition-shadow duration-500 relative">
+<div class="bg-surface border border-tower-grey rounded-2xl p-6 md:p-10 shadow-[0_0_15px_rgba(212,175,55,0.05)] focus-within:shadow-[0_0_40px_rgba(212,175,55,0.2)] transition-shadow duration-500 relative">
 <!-- Branding / Header -->
 <div class="text-center mb-12">
 <!-- The Eye Imagery -->
 <div class="w-24 h-24 mx-auto mb-6 relative flex items-center justify-center">
 <div class="absolute inset-0 border border-oracle-gold bg-oracle-gold/5 transition-all duration-75" id="oracle-eye"></div>
-<div class="w-full h-full border border-oracle-gold bg-cover bg-center backdrop-blur-xl bg-surface-container-highest/30 relative z-10 oracle-eye-bg"></div>
+<div class="w-full h-full border border-oracle-gold bg-cover bg-center bg-surface-container-highest/30 relative z-10 oracle-eye-bg"></div>
 </div>
 <h3 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-on-surface mb-2">Initialize Relay</h3>
 <p class="text-body-md font-body-md text-on-surface-variant max-w-sm mx-auto">Configure the foundational pillars of the tower to establish secure communication.</p>
@@ -162,7 +162,7 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Network SSID</label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<select aria-label="Network SSID" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 appearance-none rounded-none font-code-sm" id="ssid" onchange="handleSsidChange()">
+<select aria-label="Network SSID" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 appearance-none rounded-none font-code-sm text-code-sm leading-6" id="ssid" onchange="handleSsidChange()">
 <option value="">— run a scan to discover networks —</option>
 <option value="__manual__">Enter manually…</option>
 </select>
@@ -172,14 +172,14 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">SSID (manual)</label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="Manual Network Name" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 font-code-sm" id="ssidManual" maxlength="32" placeholder="Network name" type="text"/>
+<input aria-label="Manual Network Name" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none" id="ssidManual" maxlength="32" placeholder="Network name" type="text"/>
 </div>
 </div>
 <div class="mb-6 relative group">
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Passphrase <span class="text-tower-grey lowercase">(optional)</span></label>
 <div class="relative flex items-center">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="WiFi Password" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 pr-16 font-code-sm" id="wifiPass" maxlength="64" placeholder="Leave blank for open networks" type="password"/>
+<input aria-label="WiFi Password" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 pr-16 font-code-sm text-code-sm leading-6 rounded-none" id="wifiPass" maxlength="64" placeholder="Leave blank for open networks" type="password"/>
 <button class="absolute right-0 text-[10px] text-oracle-gold uppercase tracking-widest px-3 hover:text-primary transition-colors" onclick="togglePw('wifiPass',this)" tabindex="-1">Show</button>
 </div>
 </div>
@@ -194,7 +194,7 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Broker Hostname</label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="MQTT Broker Hostname" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 font-code-sm text-code-sm" id="mqttUrl" maxlength="128" placeholder="cluster.hivemq.cloud" type="text"/>
+<input aria-label="MQTT Broker Hostname" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none" id="mqttUrl" maxlength="128" placeholder="cluster.hivemq.cloud" type="text"/>
 </div>
 </div>
 <div class="grid grid-cols-2 gap-6">
@@ -202,7 +202,7 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Port</label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="MQTT Port" placeholder="8883" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 font-code-sm text-code-sm" id="mqttPort" max="65535" min="1" type="number" value="8883"/>
+<input aria-label="MQTT Port" placeholder="8883" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none" id="mqttPort" max="65535" min="1" type="number" value="8883"/>
 </div>
 <div class="mt-2 text-[10px] uppercase tracking-widest text-ethereal-blue transition-colors flex items-center gap-1" id="pbadge">
 <span class="inline-block text-[14px]"><svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm240-120q33 0 56.5-23.5T560-360q0-33-23.5-56.5T480-440q-33 0-56.5 23.5T400-360q0 33 23.5 56.5T480-280ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg></span>
@@ -213,7 +213,7 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Preset</label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<select aria-label="Port Preset" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 appearance-none rounded-none text-code-sm font-code-sm" id="portPreset" onchange="applyPreset()">
+<select aria-label="Port Preset" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 appearance-none rounded-none text-code-sm font-code-sm leading-6" id="portPreset" onchange="applyPreset()">
 <option value="8883">8883 · TLS</option>
 <option value="1883">1883 · Plain</option>
 <option value="">Custom</option>
@@ -225,14 +225,14 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Username <span class="text-tower-grey lowercase">(optional)</span></label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="MQTT Username" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 font-code-sm" id="mqttUser" maxlength="64" placeholder="optional" type="text"/>
+<input aria-label="MQTT Username" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none" id="mqttUser" maxlength="64" placeholder="" type="text"/>
 </div>
 </div>
 <div class="mb-6 relative group">
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Password <span class="text-tower-grey lowercase">(optional)</span></label>
 <div class="relative flex items-center">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="MQTT Password" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 pr-16 font-code-sm" id="mqttPass" maxlength="64" placeholder="optional" type="password"/>
+<input aria-label="MQTT Password" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 pr-16 font-code-sm text-code-sm leading-6 rounded-none" id="mqttPass" maxlength="64" placeholder="" type="password"/>
 <button class="absolute right-0 text-[10px] text-oracle-gold uppercase tracking-widest px-3 hover:text-primary transition-colors" onclick="togglePw('mqttPass',this)" tabindex="-1">Show</button>
 </div>
 </div>
@@ -247,7 +247,7 @@
 <label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">Hostname <span class="text-tower-grey lowercase">(optional)</span></label>
 <div class="relative">
 <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
-<input aria-label="Hostname" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-2 pl-3 font-code-sm text-code-sm" id="hostname" maxlength="32" placeholder="my-relay   (default: device-XXXXXX)" type="text"/>
+<input aria-label="Hostname" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none" id="hostname" maxlength="32" placeholder="e.g. my-relay" type="text"/>
 </div>
 </div>
 </fieldset>
