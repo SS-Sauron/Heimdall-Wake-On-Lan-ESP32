@@ -166,7 +166,7 @@ static esp_err_t load_or_generate_blob(const char *key, uint8_t *buf,
         if (err == ESP_OK) {
             err = nvs_commit(h);
         }
-        ESP_LOGI(TAG, "Generated new random blob for key \"%s\" (%zu bytes)", key, len);
+        ESP_LOGD(TAG, "Generated new random blob (%zu bytes)", len);
     }
 
     nvs_close(h);

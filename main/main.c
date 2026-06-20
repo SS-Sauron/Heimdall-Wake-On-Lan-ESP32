@@ -129,6 +129,9 @@ void app_main(void)
      * Step 1: NVS flash initialisation
      * Erase and reinitialise if the partition has been erased or the
      * stored format version changed (common after a full reflash).
+     *
+     * Note: The "nvs_keys" partition is allocated in partitions.csv but
+     * NVS encryption (nvs_flash_secure_init) is not yet enabled here.
      * ------------------------------------------------------------------ */
     esp_err_t nvs_err = nvs_flash_init();
     if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES ||

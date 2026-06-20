@@ -148,7 +148,7 @@ void identity_apply(void)
                 s_effective_hostname[sizeof(s_effective_hostname) - 1] = '\0';
                 ESP_LOGI(TAG, "Hostname loaded from NVS: %s", s_effective_hostname);
                 /* Skip fake-hostname generation — NVS value takes precedence */
-                goto apply_mac_spoof;
+                goto apply_network_identity;
             } else {
                 ESP_LOGW(TAG, "NVS hostname '%s' failed re-validation — using default",
                          nvs_hostname);
@@ -160,7 +160,7 @@ void identity_apply(void)
         /* ESP_ERR_NVS_NOT_FOUND: fall through to default/fake-hostname logic */
     }
 
-apply_mac_spoof:
+apply_network_identity:
 #if CONFIG_OPSEC_IDENTITY_SPOOF_MAC
     /*
      * MAC spoofing requires the WiFi driver to be initialised first.

@@ -8,9 +8,6 @@
  *
  * Ported from the ESP-IDF captive portal example:
  *   $IDF_PATH/examples/protocols/http_server/captive_portal/
- *
- * If that example is available on your machine, copy dns_server.c from
- * there instead of using this stub. The API is identical.
  */
 
 #pragma once
