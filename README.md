@@ -139,6 +139,10 @@ I (137113) portal: Credentials saved — rebooting into relay mode
 
 After provisioning valid WiFi and MQTT credentials, the next reboot should move past the portal and into relay mode. The important success markers are: WiFi gets an IP address, TLS validates the broker certificate, MQTT connects, and the command topic subscription is confirmed.
 
+<div align="center">
+  <img src="resources/relay-start.jpeg" alt="Heimdall relay startup confirmation screen" width="360"/>
+</div>
+
 ```console
 I (646) identity: Hostname loaded from NVS: test-relay
 I (649) main: Credentials found — starting relay
