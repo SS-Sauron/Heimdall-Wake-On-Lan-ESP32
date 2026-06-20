@@ -24,8 +24,7 @@ This document explains how Heimdall works internally: its architecture, boot seq
 7. [MQTT Protocol](#mqtt-protocol)
 8. [Wake-on-LAN](#wake-on-lan)
 9. [Self-Healing & Recovery](#self-healing--recovery)
-10. [OTA Updates](#ota-updates)
-11. [NVS Storage Schema](#nvs-storage-schema)
+10. [NVS Storage Schema](#nvs-storage-schema)
 
 ---
 
@@ -265,7 +264,7 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 {
   "mac": "AA:BB:CC:DD:EE:FF",
   "status": "sent",
-  "heap_free": 187432,
+  "free_heap": 187432,
   "uptime_s": 3672
 }
 ```
@@ -393,8 +392,8 @@ This means any MQTT client subscribed to the response topic always knows the cur
 ### Command Format
 
 **STANDARD build:**
-```json
-{ "mac": "AA:BB:CC:DD:EE:FF" }
+```text
+AA:BB:CC:DD:EE:FF
 ```
 
 **HARDENED build with TOTP:**
@@ -457,24 +456,6 @@ On each boot, if `esp_reset_reason()` is `ESP_RST_PANIC` or `ESP_RST_TASK_WDT`, 
 
 ---
 
-## OTA Updates
-
-Heimdall supports over-the-air firmware updates triggered via an MQTT command. The partition table contains two OTA application slots (`ota_0`, `ota_1`) and an `otadata` partition that tracks which slot is active.
-
-**Update flow:**
-1. Publish to the command topic: `{"cmd":"ota","url":"https://your-server/firmware.bin"}`
-2. Heimdall downloads the binary over HTTPS using `esp_https_ota()`
-3. Certificate validation uses `esp_crt_bundle_attach` — standard CA-signed HTTPS servers work with no configuration
-4. The new firmware is written to the inactive OTA slot
-5. `esp_ota_set_boot_partition()` marks the new slot for next boot
-6. `esp_restart()`
-7. Bootloader loads the new firmware in `ESP_OTA_IMG_PENDING_VERIFY` state
-8. If the device connects to WiFi and reaches `MQTT_EVENT_SUBSCRIBED`, `esp_ota_mark_app_valid_cancel_rollback()` is called — the update is committed
-9. If the device crashes before reaching step 8, the bootloader automatically rolls back to the previous slot on the next boot
-
-**The rollback guarantee:** A firmware update that breaks network connectivity can never permanently brick a deployed device. The worst case is one failed boot cycle followed by automatic rollback to the last known-good firmware.
-
----
 
 ## NVS Storage Schema
 
