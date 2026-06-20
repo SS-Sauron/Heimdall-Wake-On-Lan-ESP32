@@ -94,7 +94,7 @@ static void factory_reset_task(void *pvParameters) {
 void app_main(void)
 {
     esp_reset_reason_t reason = esp_reset_reason();
-    if (reason == ESP_RST_SW || reason == ESP_RST_PANIC || 
+    if (reason == ESP_RST_PANIC || 
         reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT ||
         reason == ESP_RST_WDT) {
         boot_crash_counter++;

@@ -98,6 +98,10 @@ idf.py build flash monitor
 
 On first boot, Heimdall creates a WiFi access point. Connect to it — your device will automatically open the configuration page. Enter your WiFi and MQTT broker credentials.
 
+<div align="center">
+  <img src="resources/Portal.png" alt="Heimdall Captive Portal Configuration" width="400"/>
+</div>
+
 **3. Send a wake command**
 
 Publish a payload to Heimdall's command topic:
@@ -106,6 +110,26 @@ AA:BB:CC:DD:EE:FF
 ```
 
 Your machine wakes up.
+
+---
+
+## ✦ Example Boot Sequence
+
+```console
+I (645) main: Not provisioned — starting captive portal
+I (660) portal: Portal AP  SSID: NETGEAR-XXXXXX
+I (663) portal: Portal AP  PASS: <HIDDEN>  (write this on a label)
+I (1109) portal: SoftAP started  SSID: NETGEAR-XXXXXX  Auth: WPA2  DHCP opt-114: http://192.168.4.1/
+I (1117) dns_server: Listening on UDP port 53 — redirect → 192.168.4.1
+I (1122) dns_server: Started — redirecting all A queries to 192.168.4.1
+I (1135) portal: HTTP server ready on port 80
+I (1135) portal: Portal ready — waiting for credentials
+I (10709) esp_netif_lwip: DHCP server assigned IP to a client, IP is: 192.168.4.2
+I (123605) portal: Stripped scheme prefix from broker URL: 'https://xxx.eu.hivemq.cloud' → 'xxx.eu.hivemq.cloud'
+I (123618) storage: Credentials saved successfully
+I (123619) storage: Hostname saved: test-relay-name
+I (137113) portal: Credentials saved — rebooting into relay mode
+```
 
 > 📁 For detailed configuration, security hardening, TOTP setup, and OTA instructions — see the [`/docs`](docs/) folder.
 
