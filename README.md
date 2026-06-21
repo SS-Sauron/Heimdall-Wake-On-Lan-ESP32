@@ -151,6 +151,8 @@ AA:BB:CC:DD:EE:FF
 
 Your machine wakes up.
 
+Publish a different target MAC to the same command topic to wake a different WoL-capable device on the same LAN. Heimdall does not store a single target PC MAC; the payload selects the target for each command.
+
 > In HARDENED builds with TOTP enabled, the payload must include a valid time-based code. See [TOTP Setup](#-totp-setup-hardened-only).
 
 ---
@@ -218,7 +220,7 @@ I (5002) mqtt_relay: Subscription confirmed (msg_id=22951)
 
 If the log reaches `MQTT connected` and `Subscription confirmed`, Heimdall is online and waiting for wake commands on the command topic shown above.
 
-> 📁 For detailed configuration, security hardening, TOTP setup, and OTA instructions — see the [`/docs`](docs/) folder.
+> 📁 For detailed configuration, security hardening, TOTP setup, OTA instructions, and future feature planning — see the [`/docs`](docs/) folder and [roadmap](docs/heimdall_feature_roadmap.md).
 
 ---
 
@@ -234,6 +236,8 @@ Response: wol/<device-mac>/r
 ```
 
 `<device-mac>` is the ESP32 station MAC printed in the serial monitor. Do not use the target PC's MAC in the topic; the target PC's MAC goes in the payload.
+
+Because the target MAC is payload-driven, one Heimdall relay can wake multiple WoL-capable machines on the same LAN broadcast domain. Send the same command topic with a different target MAC for each machine.
 
 **HARDENED build**
 

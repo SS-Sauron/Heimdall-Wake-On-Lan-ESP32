@@ -2,6 +2,8 @@
 
 This document explains how Heimdall works internally: its architecture, boot sequence, component responsibilities, configuration system, security model, and operational behaviour. It assumes you have already flashed the firmware and completed provisioning. If you haven't, start with the main [README](../README.md).
 
+Future feature ideas and viability notes live in the [Heimdall Feature Roadmap](heimdall_feature_roadmap.md).
+
 All commands, MAC addresses, broker names, and secrets shown here are placeholders. Do not commit real WiFi credentials, MQTT credentials, HMAC secrets, TOTP seeds, broker hostnames, or device MAC addresses to this repository.
 
 ---
