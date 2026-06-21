@@ -38,7 +38,7 @@ Heimdall is built as a **component-based embedded application** on top of ESP-ID
 
 The runtime is **event-driven**: WiFi events, IP events, and MQTT events are dispatched by ESP-IDF's event loop to registered callbacks. FreeRTOS tasks handle the MQTT client lifecycle and the DNS server. The main task is used for sequential boot orchestration and then enters the MQTT relay health-monitor loop indefinitely.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                        app_main()                        │
 │                    (boot orchestrator)                   │
@@ -78,7 +78,7 @@ The runtime is **event-driven**: WiFi events, IP events, and MQTT events are dis
 
 Every boot follows this exact sequence. Ordering is strict — deviating from it causes subtle failures (hostname applied before interface exists, WiFi starts before MAC is spoofed, etc.).
 
-```
+```text
 1.  nvs_flash_init()                   Initialize NVS flash partition
 2.  Factory reset button check         GPIO0 hold detection (blocking, 5 s)
 3.  esp_netif_init()                   Initialize TCP/IP stack
@@ -244,7 +244,7 @@ Uses HMAC-SHA1 with the stored 20-byte seed and the current time counter `T = fl
 SNTP is required for TOTP. `opsec_sync_clock()` blocks for up to 30 seconds waiting for a successful sync. If sync fails, TOTP validation is unavailable and commands are rejected.
 
 **Payload format with TOTP enabled:**
-```
+```text
 AA:BB:CC:DD:EE:FF:123456
 └─── target MAC ───┘└code┘
 ```
@@ -303,7 +303,7 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 Constructs and broadcasts the Wake-on-LAN magic packet.
 
 **Magic packet structure (102 bytes):**
-```
+```text
 Bytes  0–5:   FF FF FF FF FF FF          (sync stream)
 Bytes  6–101: AA BB CC DD EE FF × 16    (target MAC repeated 16 times)
 ```
@@ -323,7 +323,7 @@ This works correctly on any subnet — 192.168.x.x, 10.x.x.x, 172.16.x.x, or any
 Profiles are selected via `idf.py menuconfig` or by setting Kconfig symbols in `sdkconfig.defaults`.
 
 **STANDARD** — Default. No OPSEC features active. MQTT topics are human-readable:
-```
+```text
 Command topic:  wol/AA:BB:CC:DD:EE:FF
 Response topic: wol/AA:BB:CC:DD:EE:FF/r
 ```
@@ -396,7 +396,7 @@ For TLS connections, the broker URI hostname is also used for certificate hostna
 ### Last Will & Testament
 
 On connection, Heimdall registers a LWT message:
-```
+```text
 Topic:   <response_topic>
 Payload: {"status":"offline"}
 QoS:     1
@@ -404,7 +404,7 @@ Retain:  true
 ```
 
 When the device connects successfully it publishes:
-```
+```text
 Topic:   <response_topic>
 Payload: {"status":"online"}
 QoS:     1
@@ -421,7 +421,7 @@ AA:BB:CC:DD:EE:FF
 ```
 
 **HARDENED build with TOTP:**
-```
+```text
 AA:BB:CC:DD:EE:FF:123456
 ```
 The payload is a plain string: MAC address, colon separator, 6-digit TOTP code. No JSON wrapper in TOTP mode — the format is intentionally compact and non-descriptive.
@@ -455,7 +455,7 @@ Triggered when a valid connection cannot be established within `CONFIG_WIFI_STA_
 
 This counter persists across reboots by design. It resets to zero on any successful IP assignment.
 
-```
+```text
 WiFi Disconnect
       │
       ├── Wrong credentials? ──► increment fast counter

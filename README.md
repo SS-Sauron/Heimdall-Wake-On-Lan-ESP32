@@ -11,7 +11,7 @@
 <br>
 
 [![Version](https://img.shields.io/badge/version-v0.3.0-blueviolet?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/releases)
-[![CI](https://github.com/SS-Sauron/Heimdall/actions/workflows/build.yml/badge.svg)](https://github.com/SS-Sauron/Heimdall/actions/workflows/build.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/SS-Sauron/Heimdall/build.yml?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/actions/workflows/build.yml)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v6.0.1-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://idf.espressif.com/)
 [![Platform](https://img.shields.io/badge/ESP32-classic-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-brightgreen?style=for-the-badge)](LICENSE)
@@ -33,7 +33,7 @@ Configure it once through the built-in captive portal — then forget it exists.
 
 ## ✦ What It Does
 
-```
+```text
   [ MQTT Broker ] ──── TLS ────► [ Heimdall / ESP32 ] ──── UDP ────► [ Sleeping PC ]
                                          👁
                                     Always Watching
@@ -313,7 +313,7 @@ This works during normal relay operation and after provisioning mistakes.
 
 ## ✦ Project Structure
 
-```
+```text
 Heimdall/
 ├── components/
 │   ├── dns_server/     # Captive portal DNS redirect
