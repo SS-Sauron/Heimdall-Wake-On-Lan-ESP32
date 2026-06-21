@@ -13,7 +13,7 @@
 [![Version](https://img.shields.io/badge/version-v0.2.0-blueviolet?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/releases)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v6.0.1-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://idf.espressif.com/)
 [![Platform](https://img.shields.io/badge/ESP32-classic-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-brightgreen?style=for-the-badge)](LICENSE)
 [![MQTT](https://img.shields.io/badge/MQTT-TLS%208883-660066?style=for-the-badge&logo=mqtt&logoColor=white)](https://mqtt.org/)
 
 </div>
@@ -48,11 +48,11 @@ You send a command. Heimdall wakes your machine. That's it.
 |---|---|
 | 🌐 | **Captive Portal Provisioning** — Connect, configure, done. Full DNS redirect on iOS, Android & Windows |
 | 🔐 | **Two Build Profiles** — STANDARD for simplicity, HARDENED for OPSEC-grade deployments |
-| 🔑 | **TOTP Authentication** — RFC 6238 compliant. Every wake command requires a valid one-time code |
-| 🕵️ | **Identity Obfuscation** — MAC spoofing, fake consumer-device hostname, HMAC-derived opaque MQTT topics |
+| 🔑 | **TOTP Authentication** — RFC 6238 compliant. Every wake command requires a valid one-time code (HARDENED only) |
+| 🕵️ | **Identity Obfuscation** — MAC spoofing, generic device hostname, HMAC-derived opaque MQTT topics (HARDENED only) |
 | 📡 | **Dynamic Broadcast** — Computes the correct broadcast address at runtime. Works on any subnet |
-| 🔄 | **OTA Updates** — Pull firmware over HTTPS with automatic rollback on failure |
-| 🛡️ | **Self-Healing** — Crash loop detection, wrong-credential recovery, WiFi timeout escape hatch |
+| 🔄 | **OTA Ready** — Dual-slot partition table with automatic rollback on failure |
+| 🛡️ | **Self-Healing WiFi** — Distinguishes wrong credentials from transient outages. Never bounces into setup mode during a router restart |
 | 🏷️ | **Custom Hostname** — Set your own device name, synced to DHCP, mDNS, and NetBIOS |
 
 ---
@@ -64,8 +64,9 @@ You send a command. Heimdall wakes your machine. That's it.
 | | STANDARD | HARDENED |
 |---|:---:|:---:|
 | Captive Portal Provisioning | ✅ | ✅ |
-| OTA Updates | ✅ | ✅ |
-| Self-Healing Recovery | ✅ | ✅ |
+| OTA Dual-Slot Partition | ✅ | ✅ |
+| Self-Healing WiFi Recovery | ✅ | ✅ |
+| Dynamic Broadcast Address | ✅ | ✅ |
 | TOTP Command Authentication | ❌ | ✅ |
 | HMAC-Derived MQTT Topics | ❌ | ✅ |
 | MAC Address Spoofing | ❌ | ✅ |
@@ -85,18 +86,54 @@ That's it. No extra components required.
 
 ---
 
+## ✦ Prerequisites
+
+Before building, make sure the ESP-IDF environment is installed and exported in your shell.
+
+| Requirement | Version | Notes |
+|---|---|---|
+| [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/) | v6.0.1 | Use the official installer or `install.sh` flow |
+| Python | 3.8+ | Installed by the ESP-IDF tools setup |
+| Xtensa ESP32 toolchain | ESP-IDF managed | Installed by `install.sh` / the ESP-IDF installer |
+| IDF Component Manager | ESP-IDF bundled | Resolves managed components during build |
+
+Check the active environment with:
+
+```bash
+idf.py --version
+```
+
+---
+
 ## ✦ Quick Start
 
-**1. Flash the firmware**
+**1. Clone the project**
+
 ```bash
 git clone https://github.com/SS-Sauron/Heimdall.git
 cd Heimdall
+idf.py set-target esp32
+```
+
+**2. Select a build profile (optional)**
+
+The default profile is STANDARD. To switch to HARDENED before building:
+
+```bash
+idf.py menuconfig
+```
+
+Navigate to **WoL Relay → Build Profile**, choose the profile, save, and exit.
+
+**3. Build, flash, and monitor**
+
+```bash
 idf.py build flash monitor
 ```
 
-**2. Connect to the portal**
+**4. Connect to the portal**
 
-On first boot, Heimdall creates a WiFi access point. Connect to it — your device will automatically open the configuration page. Enter your WiFi and MQTT broker credentials.
+On first boot, Heimdall creates a WiFi access point. The SSID and password are printed to the serial monitor. Connect from your phone or laptop — the configuration page opens automatically on iOS, Android, and Windows. Enter your WiFi credentials and MQTT broker details.
 
 <div align="center">
   <img src="resources/Portal.png" alt="Heimdall Captive Portal Configuration" width="400"/>
@@ -104,14 +141,33 @@ On first boot, Heimdall creates a WiFi access point. Connect to it — your devi
 
 After saving, the device reboots into relay mode. Use the successful startup log below to confirm WiFi, TLS, and MQTT are all working.
 
-**3. Send a wake command**
+**5. Send a wake command**
 
-Publish a payload to Heimdall's command topic:
+Publish the target machine's MAC address as a plain-text payload to Heimdall's command topic:
+
 ```text
 AA:BB:CC:DD:EE:FF
 ```
 
 Your machine wakes up.
+
+> In HARDENED builds with TOTP enabled, the payload must include a valid time-based code. See [TOTP Setup](#-totp-setup-hardened-only).
+
+---
+
+## ✦ MQTT Broker
+
+Heimdall works with hosted or local MQTT brokers. Use port `8883` for MQTT over TLS, or port `1883` for plain MQTT on a trusted local network.
+
+Example hosted brokers include [HiveMQ Cloud](https://www.hivemq.com/mqtt-cloud-broker/) and [Adafruit IO](https://io.adafruit.com). These are examples only; any compatible MQTT broker should work.
+
+In the portal, enter the broker hostname such as:
+
+```text
+example-cluster.s1.eu.hivemq.cloud
+```
+
+Do not include credentials, paths, or real secrets in the broker field. Scheme prefixes such as `mqtts://`, `mqtt://`, `https://`, and `tcp://` are accepted but stripped before storage.
 
 ---
 
@@ -146,13 +202,13 @@ After provisioning valid WiFi and MQTT credentials, the next reboot should move 
 ```console
 I (646) identity: Hostname loaded from NVS: test-relay
 I (649) main: Credentials found — starting relay
-I (2875) wifi_sta: Got IP: 192.168.1.11
+I (2875) wifi_sta: Got IP: <local-ip>
 I (2876) main: WiFi connected
 I (2879) main: Starting MQTT relay
 I (2881) opsec: Command  topic: wol/<device-mac>
 I (2885) opsec: Response topic: wol/<device-mac>/r
 I (2893) mqtt_relay: Connecting to MQTT broker: mqtts://<cluster>.hivemq.cloud:8883
-I (2900) mqtt_relay: MQTT credential lengths: username=6 password=14
+I (2900) mqtt_relay: MQTT credential lengths: username=<len> password=<len>
 I (2906) mqtt_relay: TLS hostname verification/SNI: enabled via broker URI hostname
 I (2917) mqtt_relay: MQTT client started — relay is active
 I (3702) esp-x509-crt-bundle: Certificate validated
@@ -163,6 +219,78 @@ I (5002) mqtt_relay: Subscription confirmed (msg_id=22951)
 If the log reaches `MQTT connected` and `Subscription confirmed`, Heimdall is online and waiting for wake commands on the command topic shown above.
 
 > 📁 For detailed configuration, security hardening, TOTP setup, and OTA instructions — see the [`/docs`](docs/) folder.
+
+---
+
+## ✦ Finding Your Command Topic
+
+The topic Heimdall subscribes to depends on the selected build profile.
+
+**STANDARD build**
+
+```text
+Command:  wol/<device-mac>
+Response: wol/<device-mac>/r
+```
+
+`<device-mac>` is the ESP32 station MAC printed in the serial monitor. Do not use the target PC's MAC in the topic; the target PC's MAC goes in the payload.
+
+**HARDENED build**
+
+```text
+Command:  <16-character-hmac-topic>
+Response: <16-character-hmac-response-topic>
+```
+
+HARDENED topics are derived from the device MAC and a secret generated during provisioning. They are printed to the serial monitor during relay startup and should be copied into your trigger script.
+
+---
+
+## ✦ Response Payload
+
+After dispatching a magic packet, Heimdall publishes a confirmation to the response topic:
+
+```json
+{
+  "mac": "AA:BB:CC:DD:EE:FF",
+  "status": "sent",
+  "free_heap": 187432,
+  "uptime_s": 3672
+}
+```
+
+| Field | Description |
+|---|---|
+| `mac` | The target MAC address that the Wake-on-LAN magic packet was dispatched to. |
+| `status` | Confirmation that the packet was successfully broadcast to the local network. |
+| `free_heap` | The available RAM on the ESP32 in bytes. Useful for monitoring device health. |
+| `uptime_s` | Total time the ESP32 has been continuously running in seconds since the last reboot. |
+
+---
+
+## ✦ TOTP Setup (HARDENED only)
+
+When TOTP is enabled, every wake command must append a valid 6-digit time-based code to the target MAC address:
+
+```text
+AA:BB:CC:DD:EE:FF:123456
+```
+
+The TOTP seed is generated during provisioning and shown once on the portal secrets page as a Base32 value plus an `otpauth://` URI. Save it immediately; it is not printed again. If it is lost, factory reset and reprovision the device to generate a new seed.
+
+Any RFC 6238-compatible authenticator app or trigger script can generate codes from that seed. See [`docs/README.md`](docs/README.md) for the full hardened-mode and payload details.
+
+---
+
+## ✦ Factory Reset
+
+To wipe stored credentials and return to provisioning mode:
+
+1. Hold the **BOOT** button for 5 seconds.
+2. Wait for the factory reset confirmation in the serial monitor.
+3. The device erases the `wol` NVS namespace and reboots into the captive portal.
+
+This works during normal relay operation and after provisioning mistakes.
 
 ---
 
@@ -187,25 +315,9 @@ Heimdall/
 
 ---
 
-## ✦ Response Payload
+## ✦ Contributing
 
-After dispatching a magic packet, Heimdall publishes a confirmation to the response topic:
-
-```json
-{
-  "mac": "AA:BB:CC:DD:EE:FF",
-  "status": "sent",
-  "free_heap": 187432,
-  "uptime_s": 3672
-}
-```
-
-| Field | Description |
-|---|---|
-| `mac` | The target MAC address that the Wake-on-LAN magic packet was dispatched to. |
-| `status` | Confirmation that the packet was successfully broadcast to the local network. |
-| `free_heap` | The available RAM on the ESP32 in bytes. Useful for monitoring device health. |
-| `uptime_s` | Total time the ESP32 has been continuously running in seconds since the last reboot. |
+Bug reports, feature requests, and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening larger changes.
 
 ---
 
