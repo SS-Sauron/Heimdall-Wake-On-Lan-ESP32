@@ -228,7 +228,7 @@ If the log reaches `MQTT connected` and `Subscription confirmed`, Heimdall is on
 
 ## ✦ Usage & Operation
 
-Once Heimdall is successfully provisioned and connected to your MQTT broker, you can start sending wake commands. 
+Once Heimdall is successfully provisioned and connected to your MQTT broker, you can start sending wake commands.
 
 > [!IMPORTANT]
 > **Don't mix up your MAC addresses!**
