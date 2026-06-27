@@ -27,4 +27,9 @@ else()
         PRIV_REQUIRES
             identity
     )
+
+    # cJSON is only needed when WOL_PING_FEEDBACK is enabled (for JSON IP
+    # extraction). idf_component_optional_requires links it only when the
+    # Kconfig symbol is y, keeping the default binary unaffected.
+    idf_component_optional_requires(PRIVATE espressif__cjson)
 endif()

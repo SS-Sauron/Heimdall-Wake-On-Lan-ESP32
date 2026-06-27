@@ -26,6 +26,10 @@
 #include "storage.h"
 #include "opsec.h"
 #include "sdkconfig.h"
+#if CONFIG_WOL_PING_FEEDBACK
+#include "cJSON.h"
+#include "lwip/sockets.h"
+#endif /* CONFIG_WOL_PING_FEEDBACK */
 
 static const char *TAG = "opsec";
 
@@ -449,3 +453,119 @@ bool opsec_clock_is_synced(void)
 {
     return s_clock_synced;
 }
+
+/* --------------------------------------------------------------------------
+ * Optional ping feedback: IP address extraction
+ * -------------------------------------------------------------------------- */
+#if CONFIG_WOL_PING_FEEDBACK
+
+esp_err_t opsec_extract_ip(const char *payload, size_t payload_len,
+                            char ip_out[16])
+{
+    if (!payload || !ip_out || payload_len == 0)
+        return ESP_ERR_INVALID_ARG;
+
+    struct in_addr addr;
+
+    if (payload[0] == '{')
+    {
+        /* ----------------------------------------------------------------
+         * JSON payload: {"mac":"AA:BB:CC:DD:EE:FF","ip":"192.168.1.100"}
+         * Called after opsec_parse_payload() has already succeeded, so the
+         * JSON is known to be well-formed enough to contain a valid MAC.
+         * ---------------------------------------------------------------- */
+        cJSON *root = cJSON_ParseWithLength(payload, payload_len);
+        if (!root)
+        {
+            /* opsec_parse_payload already validated the MAC from this
+             * payload; if cJSON can't parse it now something is very wrong,
+             * but treat as "no IP" rather than hard-failing. */
+            ESP_LOGW(TAG, "opsec_extract_ip: cJSON parse failed — treating as no IP");
+            return ESP_ERR_NOT_FOUND;
+        }
+
+        cJSON *ip_item = cJSON_GetObjectItemCaseSensitive(root, "ip");
+        if (!ip_item)
+        {
+            /* "ip" key absent — normal case when caller didn't include it */
+            cJSON_Delete(root);
+            return ESP_ERR_NOT_FOUND;
+        }
+
+        if (!cJSON_IsString(ip_item) || !ip_item->valuestring)
+        {
+            ESP_LOGW(TAG, "opsec_extract_ip: \"ip\" field is not a string");
+            cJSON_Delete(root);
+            return ESP_ERR_INVALID_ARG;
+        }
+
+        if (inet_pton(AF_INET, ip_item->valuestring, &addr) != 1)
+        {
+            ESP_LOGW(TAG, "opsec_extract_ip: invalid IPv4 address \"%s\"",
+                     ip_item->valuestring);
+            cJSON_Delete(root);
+            return ESP_ERR_INVALID_ARG;
+        }
+
+        /* inet_pton validated; copy the original string (already ASCII) */
+        snprintf(ip_out, 16, "%s", ip_item->valuestring);
+        cJSON_Delete(root);
+        return ESP_OK;
+    }
+    else
+    {
+        /* ----------------------------------------------------------------
+         * HARDENED plain-string payload:
+         *   AA:BB:CC:DD:EE:FF:TOTP[:192.168.1.100]
+         *
+         * The MAC contributes 5 colons (positions 2,5,8,11,14).
+         * The TOTP separator adds colon #6 at position 17.
+         * An optional IP segment follows colon #7.
+         *
+         * We count colons to locate the 7th one; everything after it is
+         * the IP candidate.
+         * ---------------------------------------------------------------- */
+
+        /* Work on a null-terminated copy to safely use string functions */
+        char buf[64];
+        size_t copy_len = payload_len < sizeof(buf) - 1
+                              ? payload_len
+                              : sizeof(buf) - 1;
+        memcpy(buf, payload, copy_len);
+        buf[copy_len] = '\0';
+
+        int colon_count = 0;
+        const char *ip_start = NULL;
+
+        for (const char *p = buf; *p != '\0'; p++)
+        {
+            if (*p == ':')
+            {
+                colon_count++;
+                if (colon_count == 7)
+                {
+                    ip_start = p + 1;
+                    break;
+                }
+            }
+        }
+
+        if (!ip_start || *ip_start == '\0')
+        {
+            /* Only 6 colons — no IP segment present */
+            return ESP_ERR_NOT_FOUND;
+        }
+
+        if (inet_pton(AF_INET, ip_start, &addr) != 1)
+        {
+            ESP_LOGW(TAG, "opsec_extract_ip: invalid IPv4 address \"%s\"",
+                     ip_start);
+            return ESP_ERR_INVALID_ARG;
+        }
+
+        snprintf(ip_out, 16, "%s", ip_start);
+        return ESP_OK;
+    }
+}
+
+#endif /* CONFIG_WOL_PING_FEEDBACK */

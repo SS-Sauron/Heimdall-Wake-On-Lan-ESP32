@@ -80,3 +80,4 @@ CONFIG_OTA_ALLOW_HTTP=y
 # Change to CONFIG_WOL_PROFILE_HARDENED=y for the security build.
 # -----------------------------------------------------------------------------
 CONFIG_WOL_PROFILE_STANDARD=y
+

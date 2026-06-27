@@ -17,12 +17,11 @@ button:hover{background:#d4af37;color:#050505}
 </head>
 <body>
 <h1>Heimdall Portal</h1>
-<p>Enter the permanent portal password printed on the serial console.</p>
-<div class="msg">The portal remains locked until the correct 8-character password is submitted.</div>
+<p>Authentication required to access device configuration.</p>
 <form method="POST" action="/login">
-<label for="password">Portal password</label>
+<label for="password">Device Password</label>
 <input id="password" name="password" type="password" maxlength="8" pattern="[A-F0-9]{8}" autocomplete="off" inputmode="text" required>
-<button type="submit">Unlock Portal</button>
+<button type="submit">Authenticate</button>
 </form>
 </body>
 </html>

@@ -18,6 +18,12 @@
 #include "wol.h"
 #include "sdkconfig.h"
 #include "esp_netif.h"
+#if CONFIG_WOL_PING_FEEDBACK
+#include "ping/ping_sock.h"
+#include "esp_timer.h"
+#include "mqtt_client.h"
+#include "opsec.h"
+#endif /* CONFIG_WOL_PING_FEEDBACK */
 
 static const char *TAG = "wol";
 
@@ -155,3 +161,244 @@ esp_err_t wol_send(const char *mac_str)
         return err;
     return wol_send_raw(mac);
 }
+
+/* ==========================================================================
+ * Optional ping feedback
+ * ==========================================================================
+ * Compiles only when CONFIG_WOL_PING_FEEDBACK=y.
+ *
+ * Lifetime rules:
+ *   - esp_ping_new_session / esp_ping_start are called from the MQTT task
+ *     via wol_ping_start().
+ *   - on_ping_success / on_ping_end run on the ping's own internal task.
+ *     They may call esp_ping_stop() but MUST NOT call
+ *     esp_ping_delete_session() (that would delete the running task itself).
+ *   - wol_ping_cleanup() is called from the health monitor loop in
+ *     mqtt_relay.c and is the only place that calls esp_ping_delete_session.
+ * ========================================================================== */
+#if CONFIG_WOL_PING_FEEDBACK
+
+/* --------------------------------------------------------------------------
+ * Private session context
+ * -------------------------------------------------------------------------- */
+typedef struct {
+    esp_mqtt_client_handle_t mqtt_client;
+    char                     rsp_topic[OPSEC_TOPIC_MAX_LEN];
+    uint8_t                  mac[6];
+    int64_t                  start_us; /* esp_timer_get_time() when WoL sent */
+} ping_ctx_t;
+
+static esp_ping_handle_t  s_ping_session      = NULL;
+static volatile bool      s_ping_active        = false;
+static volatile bool      s_ping_needs_cleanup = false;
+static ping_ctx_t         s_ping_ctx           = {0};
+static bool               s_machine_woke       = false;
+
+/* --------------------------------------------------------------------------
+ * Callbacks — run on the ping's internal FreeRTOS task
+ * -------------------------------------------------------------------------- */
+
+static void on_ping_success(esp_ping_handle_t hdl, void *args)
+{
+    ping_ctx_t *ctx = (ping_ctx_t *)args;
+
+    s_machine_woke = true;
+
+    /* boot_time_s = wall-clock time elapsed since the WoL packet was sent */
+    uint32_t boot_time_s = (uint32_t)(
+        (esp_timer_get_time() - ctx->start_us) / 1000000LL);
+
+    char payload[96];
+    snprintf(payload, sizeof(payload),
+             "{\"mac\":\"%02X:%02X:%02X:%02X:%02X:%02X\","
+             "\"status\":\"awake\","
+             "\"boot_time_s\":%" PRIu32 "}",
+             ctx->mac[0], ctx->mac[1], ctx->mac[2],
+             ctx->mac[3], ctx->mac[4], ctx->mac[5],
+             boot_time_s);
+
+    if (ctx->mqtt_client)
+    {
+        int msg_id = esp_mqtt_client_publish(
+            ctx->mqtt_client,
+            ctx->rsp_topic,
+            payload,
+            0,  /* len=0 → strlen */
+            1,  /* QoS 1 */
+            0   /* retain=false */
+        );
+        if (msg_id < 0)
+        {
+            ESP_LOGW(TAG, "ping: awake publish failed");
+        }
+        else
+        {
+            ESP_LOGI(TAG, "ping: awake → %s", payload);
+        }
+    }
+
+    /* Stop the session early — safe to call from callback */
+    esp_ping_stop(hdl);
+    s_ping_active        = false;
+    s_ping_needs_cleanup = true;
+}
+
+static void on_ping_timeout(esp_ping_handle_t hdl, void *args)
+{
+    /* Individual packet timeouts are normal while the machine is booting.
+     * The session continues until count is exhausted — no action needed. */
+    (void)hdl;
+    (void)args;
+}
+
+static void on_ping_end(esp_ping_handle_t hdl, void *args)
+{
+    ping_ctx_t *ctx = (ping_ctx_t *)args;
+
+    if (!s_machine_woke)
+    {
+        /* Session exhausted without a reply — publish timeout */
+        char payload[72];
+        snprintf(payload, sizeof(payload),
+                 "{\"mac\":\"%02X:%02X:%02X:%02X:%02X:%02X\","
+                 "\"status\":\"timeout\"}",
+                 ctx->mac[0], ctx->mac[1], ctx->mac[2],
+                 ctx->mac[3], ctx->mac[4], ctx->mac[5]);
+
+        if (ctx->mqtt_client)
+        {
+            int msg_id = esp_mqtt_client_publish(
+                ctx->mqtt_client,
+                ctx->rsp_topic,
+                payload,
+                0, 1, 0);
+            if (msg_id < 0)
+            {
+                ESP_LOGW(TAG, "ping: timeout publish failed");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "ping: timeout → %s", payload);
+            }
+        }
+    }
+
+    /* Do NOT call esp_ping_delete_session() here — we are running on the
+     * ping's own internal task; deleting it from within would delete the
+     * current task. Defer to wol_ping_cleanup(). */
+    s_ping_active        = false;
+    s_ping_needs_cleanup = true;
+    (void)hdl;
+}
+
+/* --------------------------------------------------------------------------
+ * Public API
+ * -------------------------------------------------------------------------- */
+
+esp_err_t wol_ping_start(const char *target_ip,
+                          const uint8_t mac[6],
+                          esp_mqtt_client_handle_t mqtt_client,
+                          const char *rsp_topic,
+                          int64_t wol_send_time)
+{
+    if (!target_ip || !mac || !mqtt_client || !rsp_topic)
+        return ESP_ERR_INVALID_ARG;
+
+    if (s_ping_active)
+    {
+        ESP_LOGW(TAG, "wol_ping_start: session already active — ignoring");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* ------------------------------------------------------------------
+     * Convert dotted-decimal IP string → ip_addr_t
+     * Official ESP-IDF pattern (icmp_echo example + esp-csi):
+     * ------------------------------------------------------------------ */
+    ip_addr_t target_addr;
+    memset(&target_addr, 0, sizeof(target_addr));
+
+    struct addrinfo hint;
+    struct addrinfo *res = NULL;
+    memset(&hint, 0, sizeof(hint));
+
+    if (getaddrinfo(target_ip, NULL, &hint, &res) != 0 || res == NULL)
+    {
+        ESP_LOGE(TAG, "wol_ping_start: could not resolve IP: %s", target_ip);
+        if (res) freeaddrinfo(res);
+        return ESP_FAIL;
+    }
+
+    struct in_addr addr4 = ((struct sockaddr_in *)(res->ai_addr))->sin_addr;
+    inet_addr_to_ip4addr(ip_2_ip4(&target_addr), &addr4);
+    target_addr.type = IPADDR_TYPE_V4;
+    freeaddrinfo(res);
+
+    /* ------------------------------------------------------------------
+     * Store session context
+     * ------------------------------------------------------------------ */
+    s_ping_ctx.mqtt_client = mqtt_client;
+    strncpy(s_ping_ctx.rsp_topic, rsp_topic, OPSEC_TOPIC_MAX_LEN - 1);
+    s_ping_ctx.rsp_topic[OPSEC_TOPIC_MAX_LEN - 1] = '\0';
+    memcpy(s_ping_ctx.mac, mac, 6);
+    s_ping_ctx.start_us = wol_send_time;
+    s_machine_woke      = false;
+
+    /* ------------------------------------------------------------------
+     * Build ping config
+     *
+     * Total session duration ≈ count × interval_ms
+     * (timeout_ms is per-packet, not a session total)
+     * ------------------------------------------------------------------ */
+    esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
+    cfg.target_addr     = target_addr;
+    cfg.count           = (uint32_t)((CONFIG_WOL_PING_TIMEOUT_SEC * 1000)
+                                     / CONFIG_WOL_PING_INTERVAL_MS);
+    cfg.interval_ms     = (uint32_t)CONFIG_WOL_PING_INTERVAL_MS;
+    cfg.timeout_ms      = 1000; /* 1 s per-packet timeout */
+    cfg.task_stack_size = 4096;
+
+    esp_ping_callbacks_t cbs = {
+        .cb_args         = &s_ping_ctx,
+        .on_ping_success = on_ping_success,
+        .on_ping_timeout = on_ping_timeout,
+        .on_ping_end     = on_ping_end,
+    };
+
+    esp_err_t err = esp_ping_new_session(&cfg, &cbs, &s_ping_session);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_ping_new_session failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    s_ping_active        = true;
+    s_ping_needs_cleanup = false;
+
+    err = esp_ping_start(s_ping_session);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_ping_start failed: %s", esp_err_to_name(err));
+        /* Clean up immediately — we're not in a callback so it's safe */
+        esp_ping_delete_session(s_ping_session);
+        s_ping_session = NULL;
+        s_ping_active  = false;
+        return err;
+    }
+
+    ESP_LOGI(TAG, "Ping session started → %s (count=%" PRIu32 " interval=%" PRIu32 "ms)",
+             target_ip, cfg.count, cfg.interval_ms);
+    return ESP_OK;
+}
+
+void wol_ping_cleanup(void)
+{
+    if (!s_ping_needs_cleanup || s_ping_session == NULL)
+        return;
+
+    ESP_LOGD(TAG, "wol_ping_cleanup: deleting completed session");
+    esp_ping_delete_session(s_ping_session);
+    s_ping_session       = NULL;
+    s_ping_needs_cleanup = false;
+}
+
+#endif /* CONFIG_WOL_PING_FEEDBACK */

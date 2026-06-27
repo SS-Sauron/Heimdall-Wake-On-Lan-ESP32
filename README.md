@@ -55,6 +55,7 @@ You send a command. Heimdall wakes your machine. That's it.
 | 🔄 | **OTA Ready** — Dual-slot partition table with automatic rollback on failure |
 | 🛡️ | **Self-Healing WiFi** — Distinguishes wrong credentials from transient outages. Never bounces into setup mode during a router restart |
 | 🏷️ | **Custom Hostname** — Set your own device name, synced to DHCP, mDNS, and NetBIOS |
+| 🏓 | **Ping Feedback** — Optionally confirm PC awake status via ICMP echo requests |
 
 ---
 
@@ -149,6 +150,8 @@ Publish the target machine's MAC address as a plain-text payload to Heimdall's c
 ```text
 AA:BB:CC:DD:EE:FF
 ```
+
+*(If you enabled Ping Feedback, you can optionally include the target IP. See **Usage & Operation** for payload formats).*
 
 Your machine wakes up.
 
@@ -275,6 +278,22 @@ The repository includes ready-to-use Bash scripts that format the MQTT payload a
 ```
 *Example:* `./scripts/wake_hardened.sh mqtt.example.com 8883 "a1b2c3d4e5f6g7h8" 99:88:77:66:55:44 "JBSWY3DPEHPK3PXP"`
 
+### Ping Feedback (Optional)
+
+If your firmware is compiled with `CONFIG_WOL_PING_FEEDBACK=y`, you can include the target PC's IP address in your command. Heimdall will ping the machine and publish an alert when it successfully boots up, or if it times out.
+
+**Standard Build (JSON):**
+Send a JSON payload instead of plain text:
+```json
+{"mac":"AA:BB:CC:DD:EE:FF", "ip":"192.168.1.100"}
+```
+
+**Hardened Build (String):**
+Append the IP address as a 4th segment after the MAC and TOTP:
+```text
+AA:BB:CC:DD:EE:FF:123456:192.168.1.100
+```
+
 ### Response Payload
 
 After dispatching a magic packet, Heimdall publishes a confirmation to the response topic:
@@ -288,10 +307,21 @@ After dispatching a magic packet, Heimdall publishes a confirmation to the respo
 }
 ```
 
+If Ping Feedback was requested, you will receive a *second* message on this same topic once the machine boots (or times out):
+
+```json
+{
+  "mac": "AA:BB:CC:DD:EE:FF",
+  "status": "awake",
+  "boot_time_s": 14
+}
+```
+
 | Field | Description |
 |---|---|
 | `mac` | The target MAC address that the Wake-on-LAN magic packet was dispatched to. |
-| `status` | Confirmation that the packet was successfully broadcast to the local network. |
+| `status` | `sent` (WoL broadcasted), `awake` (PC responded to ping), or `timeout` (ping failed). |
+| `boot_time_s` | Time elapsed in seconds between the WoL broadcast and the first successful ping reply. |
 | `free_heap` | The available RAM on the ESP32 in bytes. Useful for monitoring device health. |
 | `uptime_s` | Total time the ESP32 has been continuously running in seconds since the last reboot. |
 

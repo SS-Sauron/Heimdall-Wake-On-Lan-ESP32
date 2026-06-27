@@ -95,6 +95,29 @@ esp_err_t opsec_derive_topics(char cmd_topic[OPSEC_TOPIC_MAX_LEN],
 esp_err_t opsec_parse_payload(const char *payload, size_t payload_len,
                                uint8_t mac_out[6]);
 
+#if CONFIG_WOL_PING_FEEDBACK
+/**
+ * @brief Extract optional IP address from a command payload.
+ *
+ * Called AFTER opsec_parse_payload() has already succeeded and
+ * validated the payload. This function looks for an IP address
+ * appended to the payload beyond what opsec_parse_payload() consumed.
+ *
+ * For STANDARD (JSON) payloads: looks for "ip" key in JSON object.
+ * For HARDENED (plain string) payloads: looks for a fourth colon-
+ * separated segment after the TOTP code.
+ *
+ * @param payload     Original raw payload bytes.
+ * @param payload_len Length of payload.
+ * @param ip_out      Output buffer, at least 16 bytes.
+ * @return ESP_OK if a valid IP was found and written to ip_out.
+ *         ESP_ERR_NOT_FOUND if no IP field is present (not an error).
+ *         ESP_ERR_INVALID_ARG if an IP field is present but malformed.
+ */
+esp_err_t opsec_extract_ip(const char *payload, size_t payload_len,
+                            char ip_out[16]);
+#endif /* CONFIG_WOL_PING_FEEDBACK */
+
 /* -------------------------------------------------------------------------
  * SNTP clock synchronisation (required for TOTP)
  * ------------------------------------------------------------------------- */

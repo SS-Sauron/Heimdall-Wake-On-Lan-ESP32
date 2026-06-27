@@ -10,5 +10,49 @@ menu "Wake-on-LAN"
             on by default. Only change this if your target PC's NIC or
             operating system requires a non-standard port.
 
+    config WOL_PING_FEEDBACK
+        bool "Enable ping-based wake confirmation"
+        default n
+        help
+            When enabled and a WoL command payload includes an "ip" field,
+            Heimdall pings that IP after sending the magic packet and
+            publishes a second MQTT response when the machine responds or
+            the ping session expires. Uses the ESP-IDF non-blocking ping
+            API so the MQTT client task is never blocked.
+            When disabled, no ping code is compiled and the "ip" field
+            in command payloads is silently ignored.
+
+    config WOL_PING_TIMEOUT_SEC
+        int "Ping timeout in seconds"
+        default 120
+        range 10 300
+        depends on WOL_PING_FEEDBACK
+        help
+            How long to keep pinging after a WoL packet before declaring
+            the wake attempt failed and publishing {"status":"timeout"}.
+            120 seconds covers most cold-boot scenarios including POST.
+            The firmware computes the ping count from this value and
+            CONFIG_WOL_PING_INTERVAL_MS automatically.
+
+    config WOL_PING_INTERVAL_MS
+        int "Ping interval in milliseconds"
+        default 2000
+        range 500 10000
+        depends on WOL_PING_FEEDBACK
+        help
+            How often to send an ICMP echo request during the ping session.
+            2000 ms (one ping every 2 seconds) is a reasonable default for
+            monitoring a booting machine without flooding the network.
+
+    config WOL_PING_MAX_CONCURRENT
+        int "Maximum concurrent ping sessions"
+        default 1
+        range 1 1
+        depends on WOL_PING_FEEDBACK
+        help
+            Currently fixed at 1. If a second WoL+ping command arrives
+            while a ping session is already active, the new ping is skipped
+            and only the WoL packet is sent. This avoids resource leaks
+            from unbounded concurrent sessions.
 
 endmenu

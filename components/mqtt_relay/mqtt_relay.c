@@ -9,6 +9,7 @@
  *   CONNECTED   → subscribe to command topic, publish "online" to LWT topic
  *   SUBSCRIBED  → log confirmation
  *   DATA        → opsec_parse_payload() → wol_send() → publish response
+ *               → [optional] opsec_extract_ip() → wol_ping_start()
  *   DISCONNECTED→ log (client auto-reconnects)
  *   ERROR       → log TLS / TCP details
  */
@@ -146,11 +147,55 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
             break;
         }
 
+        /* Record timestamp before send — used for boot_time_s calculation */
+        int64_t wol_send_time = esp_timer_get_time();
+
         /* Dispatch the Magic Packet */
         esp_err_t wol_err = wol_send_raw(target_mac);
 
-        /* Publish response (no-op if CONFIG_WOL_RESPONSE_CHANNEL=n) */
+        /* Publish immediate response (no-op if CONFIG_WOL_RESPONSE_CHANNEL=n) */
         publish_response(target_mac, wol_err);
+
+#if CONFIG_WOL_PING_FEEDBACK
+        {
+            /* Extract optional IP — does not touch security-critical parsing */
+            char ip_str[16] = {0};
+            esp_err_t ip_err = opsec_extract_ip(
+                event->data, (size_t)event->data_len, ip_str);
+
+            if (ip_err == ESP_OK)
+            {
+                esp_err_t ping_err = wol_ping_start(
+                    ip_str,
+                    target_mac,
+                    s_client,
+                    s_rsp_topic,
+                    wol_send_time);
+
+                if (ping_err == ESP_ERR_INVALID_STATE)
+                {
+                    ESP_LOGW(TAG, "Ping session already active — skipped");
+                }
+                else if (ping_err != ESP_OK)
+                {
+                    ESP_LOGW(TAG, "Failed to start ping: %s",
+                             esp_err_to_name(ping_err));
+                }
+                else
+                {
+                    ESP_LOGI(TAG, "Ping session started for %s", ip_str);
+                }
+            }
+            else if (ip_err == ESP_ERR_NOT_FOUND)
+            {
+                ESP_LOGD(TAG, "No IP in payload — ping skipped");
+            }
+            else
+            {
+                ESP_LOGW(TAG, "Malformed IP in payload — ping skipped");
+            }
+        }
+#endif /* CONFIG_WOL_PING_FEEDBACK */
         break;
     }
 
@@ -310,5 +355,9 @@ void mqtt_relay_start(void)
         vTaskDelay(pdMS_TO_TICKS(300000));
         ESP_LOGD(TAG, "Relay alive — uptime: %llu s",
                  (unsigned long long)esp_timer_get_time() / 1000000ULL);
+#if CONFIG_WOL_PING_FEEDBACK
+        /* Release resources from any completed ping session */
+        wol_ping_cleanup();
+#endif
     }
 }
