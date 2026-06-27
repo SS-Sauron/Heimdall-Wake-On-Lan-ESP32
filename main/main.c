@@ -7,9 +7,11 @@
  * Boot sequence:
  *   1. NVS flash init
  *   2. Core networking primitives + one-time WiFi driver init
- *   3. Factory-reset button check (blocking — GPIO 0, active-low)
+ *   2.5 Status LED init (GPIO output, blink task started)
+ *   3. Factory-reset button check (background task — GPIO 0, active-low)
  *   4. Identity obfuscation (MAC spoof, hostname) — before WiFi starts
  *   5. Provisioning check → portal (first boot) or station (normal boot)
+ *      - Sets LED to STATUS_LED_STATE_PORTAL before portal_start()
  *   6. WiFi station connect
  *   7. MQTT relay start (runs indefinitely)
  */
@@ -34,6 +36,7 @@
 #include "mqtt_relay.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
+#include "status_led.h"
 
 static const char *TAG = "main";
 
@@ -167,6 +170,8 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_init(&wifi_cfg));
     ESP_LOGI(TAG, "WiFi base initialized");
 
+    status_led_init();
+
     /* ------------------------------------------------------------------
      * Step 3: Factory-reset button monitor
      * Spawns a background task to constantly monitor the BOOT button.
@@ -207,6 +212,7 @@ void app_main(void)
         ESP_LOGI(TAG, "Portal password: %s  (permanent — same after every reset)",
                  portal_password);
 #endif
+        status_led_set_state(STATUS_LED_STATE_PORTAL);
         portal_start();   /* blocks until credentials saved, then reboots */
         /* unreachable */
     }

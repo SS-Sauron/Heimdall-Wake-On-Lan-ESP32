@@ -13,4 +13,5 @@ idf_component_register(
     PRIV_REQUIRES
         esp_driver_gpio
         espressif__cjson
+        status_led
 )

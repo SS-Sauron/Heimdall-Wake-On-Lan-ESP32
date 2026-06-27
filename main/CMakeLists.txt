@@ -18,4 +18,5 @@ idf_component_register(
         opsec
         esp_driver_gpio
         espressif__mdns
+        status_led
 )

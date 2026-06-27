@@ -18,6 +18,7 @@
  *   "hs"  →  HMAC secret      (blob, 32 bytes)
  *   "ts"  →  TOTP seed        (blob, 20 bytes, HMAC-SHA1 for RFC 6238)
  *   "hn"  →  custom hostname  (str, max 32 chars, RFC 1123 label)
+ *   "so"  →  SecureOn password (str, max 17 chars, AA:BB:CC:DD:EE:FF, optional)
  *   "rc"  →  WiFi reboot-strike counter (u8, slow-path absolute-timeout)
  */
 
@@ -41,6 +42,7 @@ extern "C" {
 #define STORAGE_HMAC_SECRET_LEN 32
 #define STORAGE_TOTP_SEED_LEN   20
 #define STORAGE_HOSTNAME_MAX    32  /* matches ESP_NETIF_HOSTNAME_MAX_SIZE */
+#define STORAGE_SECUREON_MAX    17  /* AA:BB:CC:DD:EE:FF */
 
 /* -------------------------------------------------------------------------
  * Credential bundle — passed in from the portal after the user submits the
@@ -54,6 +56,7 @@ typedef struct {
     uint16_t mqtt_port;
     char     mqtt_user[STORAGE_MQTT_USER_MAX + 1];
     char     mqtt_pass[STORAGE_MQTT_PASS_MAX + 1];
+    char     secureon_pwd[STORAGE_SECUREON_MAX + 1];
 } storage_credentials_t;
 
 /* -------------------------------------------------------------------------

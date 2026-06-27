@@ -786,6 +786,19 @@ static esp_err_t handle_provision(httpd_req_t *req)
         strncpy(creds.mqtt_pass, j->valuestring, STORAGE_MQTT_PASS_MAX);
     }
 
+    j = cJSON_GetObjectItem(json, "secureon_pwd");
+    if (cJSON_IsString(j)) {
+        if (strlen(j->valuestring) > STORAGE_SECUREON_MAX) {
+            cJSON_Delete(json);
+            cJSON *err = cJSON_CreateObject();
+            cJSON_AddStringToObject(err, "error", "SecureOn password too long");
+            esp_err_t r = send_json(req, err, 400);
+            cJSON_Delete(err);
+            return r;
+        }
+        strncpy(creds.secureon_pwd, j->valuestring, STORAGE_SECUREON_MAX);
+    }
+
     /* Optional hostname field — validate if present, reject with 400 if invalid */
     char validated_hostname[STORAGE_HOSTNAME_MAX + 1] = {0};
     bool hostname_provided = false;

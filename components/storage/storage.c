@@ -7,7 +7,8 @@
  * All key names are intentionally short and opaque:
  *   "pv" = provisioned, "wk" = wifi ssid, "wp" = wifi pass,
  *   "mu" = mqtt url,    "mp" = mqtt port, "ma" = mqtt user,
- *   "mb" = mqtt pass,   "hs" = hmac secret, "ts" = totp seed
+ *   "mb" = mqtt pass,   "hs" = hmac secret, "ts" = totp seed,
+ *   "so" = secureon password (optional, 6-byte hex MAC string)
  */
 
 #include <string.h>
@@ -33,6 +34,7 @@ static const char *NS    = CONFIG_STORAGE_NVS_NAMESPACE;   /* e.g. "wol" */
 #define KEY_HMAC_SECRET   "hs"
 #define KEY_TOTP_SEED     "ts"
 #define KEY_HOSTNAME      "hn"
+#define KEY_SECUREON      "so"
 #define KEY_REBOOT_COUNT  "rc"  /* WiFi slow-path reboot-strike counter (u8) */
 
 /* --------------------------------------------------------------------------
@@ -92,6 +94,9 @@ esp_err_t storage_save_credentials(const storage_credentials_t *creds)
     err = nvs_set_str(h, KEY_MQTT_PASS, creds->mqtt_pass);
     if (err != ESP_OK) goto done;
 
+    err = nvs_set_str(h, KEY_SECUREON, creds->secureon_pwd);
+    if (err != ESP_OK) goto done;
+
     /* Set provisioned flag last so a partial write is not mistaken for
      * a successful one on the next boot. */
     err = nvs_set_u8(h, KEY_PROVISIONED, 1);
@@ -140,6 +145,13 @@ esp_err_t storage_load_credentials(storage_credentials_t *creds)
 
     len = sizeof(creds->mqtt_pass);
     err = nvs_get_str(h, KEY_MQTT_PASS, creds->mqtt_pass, &len);
+    if (err != ESP_OK) goto done;
+
+    len = sizeof(creds->secureon_pwd);
+    /* SecureOn password is optional. Don't fail the whole load if it's missing. */
+    if (nvs_get_str(h, KEY_SECUREON, creds->secureon_pwd, &len) != ESP_OK) {
+        memset(creds->secureon_pwd, 0, sizeof(creds->secureon_pwd));
+    }
 
 done:
     nvs_close(h);

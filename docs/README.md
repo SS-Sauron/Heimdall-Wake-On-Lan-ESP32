@@ -22,6 +22,7 @@ All commands, MAC addresses, broker names, and secrets shown here are placeholde
    - [opsec](#opsec)
    - [mqtt_relay](#mqtt_relay)
    - [wol](#wol)
+   - [status_led](#status_led)
 4. [Build Profiles](#build-profiles)
 5. [Configuration Reference](#configuration-reference)
 6. [Network Security Model](#network-security-model)
@@ -110,6 +111,8 @@ Every boot follows this exact sequence. Ordering is strict — deviating from it
 
 The boot dispatcher. Calls each component in the correct order, handles the provisioned/unprovisioned branch, and contains the crash-loop detection logic. It creates the default STA netif and initializes the WiFi driver exactly once before identity handling; station and portal paths only configure mode, credentials, and start WiFi afterward. After handing off to `mqtt_relay_start()` it never regains control — the MQTT relay runs until a reset.
 
+**Status LED init:** `status_led_init()` is called immediately after the WiFi driver is initialized (before the factory reset task spawns). It configures the GPIO pin as output and starts the blink task. The portal branch calls `status_led_set_state(STATUS_LED_STATE_PORTAL)` before `portal_start()` so the LED begins blinking as soon as provisioning mode is entered.
+
 **Crash loop detection:** On every boot, `esp_reset_reason()` is checked. If the reason is `ESP_RST_PANIC` or `ESP_RST_TASK_WDT` (genuine firmware crashes — not intentional software resets), a counter in NVS is incremented. Once that counter reaches the configured threshold (default: 5 consecutive crashes), `storage_erase_all()` is called and the device reboots into provisioning mode. Any successful WiFi connection resets the counter to zero.
 
 **Factory reset button:** GPIO0 (the BOOT button on most ESP32 dev boards) is sampled at boot. If held for `CONFIG_WOL_FACTORY_RESET_HOLD_MS` (default: 5000 ms), all NVS credentials are erased and the device reboots into the captive portal. The detection uses a blocking polling loop with a 20 ms debounce — the entire rest of boot is paused while the button is held, which is intentional.
@@ -123,6 +126,8 @@ The boot dispatcher. Calls each component in the correct order, handles the prov
 The single NVS interface for the entire project. Every other component that needs to persist or read data does so through functions defined here — nothing else calls NVS APIs directly. This centralises all key name definitions and ensures consistent error handling across the codebase.
 
 All NVS key names are two characters, opaque by design. A raw NVS dump should not reveal the purpose of any stored field.
+
+**SecureOn support:** The optional SecureOn password is stored under key `"so"` as a 17-character string (`AA:BB:CC:DD:EE:FF` format). The load path does not fail if the key is absent — `nvs_get_str` returning `ESP_ERR_NVS_NOT_FOUND` for this key is treated as "no SecureOn configured" and the standard 102-byte magic packet is sent.
 
 See [NVS Storage Schema](#nvs-storage-schema) for the complete key list.
 
@@ -330,6 +335,18 @@ This works correctly on any subnet — 192.168.x.x, 10.x.x.x, 172.16.x.x, or any
 
 ---
 
+### status_led
+
+**Files:** `components/status_led/status_led.c`, `components/status_led/status_led.h`
+
+Provides visual feedback using a single GPIO pin (typically the built-in LED). Runs a low-priority FreeRTOS task that manages blink patterns based on system state:
+- Fast blink (200ms) during portal provisioning
+- Slow pulse (1000ms) while connecting to WiFi/MQTT
+- Solid ON when ready and listening for commands
+- Rapid flash sequence when a WoL packet is dispatched
+
+---
+
 ## Build Profiles
 
 Profiles are selected via `idf.py menuconfig` or by setting Kconfig symbols in `sdkconfig.defaults`.
@@ -376,6 +393,8 @@ Key Kconfig symbols. All configurable via `idf.py menuconfig`.
 | `CONFIG_WOL_PING_FEEDBACK` | n | Enable ICMP ping after WoL to confirm machine boot |
 | `CONFIG_WOL_GPIO_COMMANDS` | n | Enable GPIO pin control via MQTT JSON commands |
 | `CONFIG_WOL_GPIO_ALLOWED_PINS` | "4,5" | Comma-separated list of pins that may be driven remotely |
+| `CONFIG_WOL_STATUS_LED` | y | Enable visual status LED feedback |
+| `CONFIG_WOL_STATUS_LED_PIN` | 2 | GPIO pin used for the status LED |
 | `CONFIG_WOL_LEGACY_RSP_TOPIC` | n | Also publish responses to the legacy `/r` topic for backwards compatibility |
 
 ---
@@ -561,11 +580,47 @@ All data is stored in the `"wol"` NVS namespace. Key names are two characters by
 | `ma` | string | MQTT username |
 | `mb` | string | MQTT password |
 | `hn` | string | User-set hostname (optional) |
+| `so` | string | SecureOn password (optional) |
 | `hs` | blob | HMAC secret — 32 random bytes (HARDENED) |
 | `ts` | blob | TOTP seed — 20 random bytes (HARDENED) |
 | `rc` | u8 | WiFi slow-path reboot strike counter |
 
 Keys `hs` and `ts` are generated once during provisioning and never transmitted after that point. They are displayed on the one-time HTML secrets page and never again — if lost, they can only be regenerated by factory-resetting and reprovisioning.
+
+---
+
+## Development Environment
+
+### IDE Code Intelligence (clangd)
+
+A `.clangd` configuration file is committed at the repository root. It is **only read by the IDE language server** — never by `idf.py` or the Xtensa GCC toolchain.
+
+**Why it exists:** The ESP-IDF build system passes Xtensa GCC-specific compiler flags (`-mlongcalls`, `-fno-shrink-wrap`, `-fstrict-volatile-bitfields`, etc.) that the IDE's clangd LLVM-based parser does not recognise. Without this file, clangd aborts flag processing early, fails to resolve the include paths, and reports false-positive errors for standard C headers (`string.h`, `stdint.h`) and all symbols they define (`memset`, `strlen`, etc.).
+
+**What it does:**
+```yaml
+CompileFlags:
+  CompilationDatabase: build   # location of compile_commands.json
+  Remove: [-m*, -f*]           # strip GCC-only flags before clangd evaluates them
+```
+
+**Impact matrix:**
+
+| | With `.clangd` | Without `.clangd` |
+|---|---|---|
+| `idf.py build` firmware | ✅ Unaffected | ✅ Unaffected |
+| Flashed firmware behaviour | ✅ Identical | ✅ Identical |
+| IDE error squiggles | ✅ Clean | 🟡 False positives |
+
+For full sysroot resolution (eliminating the remaining `string.h not found` warning), also add the following to your IDE's clangd settings, substituting the path to your local Xtensa GCC installation:
+
+```json
+"clangd.arguments": [
+    "--query-driver=C:/Espressif/tools/xtensa-esp-elf/<version>/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc.exe"
+]
+```
+
+The exact toolchain path for your machine is printed in the first line of `build/compile_commands.json`.
 
 ---
 

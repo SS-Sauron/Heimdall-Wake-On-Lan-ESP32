@@ -1,16 +1,22 @@
 /*
  * wol.c
  *
- * Builds and broadcasts the 102-byte Wake-on-LAN Magic Packet.
+ * Builds and broadcasts the Wake-on-LAN Magic Packet.
  *
- * Packet structure (RFC-like):
+ * Standard packet structure (102 bytes):
  *   Bytes  0– 5:  0xFF 0xFF 0xFF 0xFF 0xFF 0xFF   (sync stream)
  *   Bytes  6–101: target MAC repeated 16 times     (16 × 6 = 96 bytes)
+ *
+ * SecureOn extension (optional, +6 bytes = 108 bytes total):
+ *   If a SecureOn password is stored in NVS (key "so"), it is parsed
+ *   from "AA:BB:CC:DD:EE:FF" format and appended directly after the
+ *   102-byte payload before transmission. The target NIC will only
+ *   honour the packet if this 6-byte password matches its stored value.
+ *   If no password is configured, the standard 102-byte packet is sent.
  */
 
 #include <string.h>
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
@@ -24,6 +30,7 @@
 #include "mqtt_client.h"
 #include "opsec.h"
 #endif /* CONFIG_WOL_PING_FEEDBACK */
+#include "storage.h"
 
 static const char *TAG = "wol";
 
@@ -80,8 +87,21 @@ esp_err_t wol_send_raw(const uint8_t mac[6])
         return ESP_ERR_INVALID_ARG;
 
     /* Build the packet */
-    uint8_t pkt[MAGIC_PACKET_LEN];
+    uint8_t pkt[MAGIC_PACKET_LEN + 6];
     build_magic_packet(pkt, mac);
+    int pkt_len = MAGIC_PACKET_LEN;
+
+    storage_credentials_t creds = {0};
+    if (storage_load_credentials(&creds) == ESP_OK && strlen(creds.secureon_pwd) > 0) {
+        uint8_t sec_mac[6];
+        if (wol_parse_mac(creds.secureon_pwd, sec_mac) == ESP_OK) {
+            memcpy(pkt + MAGIC_PACKET_LEN, sec_mac, 6);
+            pkt_len += 6;
+            ESP_LOGI(TAG, "Appending 6-byte SecureOn password to Magic Packet");
+        } else {
+            ESP_LOGW(TAG, "Invalid SecureOn password format in NVS; sending standard 102-byte packet");
+        }
+    }
 
     /* Resolve broadcast address from STA netif IP and netmask */
     esp_netif_t *sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
@@ -128,9 +148,9 @@ esp_err_t wol_send_raw(const uint8_t mac[6])
     esp_err_t ret = ESP_OK;
     for (int i = 0; i < SEND_REPETITIONS; i++)
     {
-        ssize_t sent = sendto(sock, pkt, MAGIC_PACKET_LEN, 0,
+        ssize_t sent = sendto(sock, pkt, pkt_len, 0,
                               (struct sockaddr *)&dest, sizeof(dest));
-        if (sent != MAGIC_PACKET_LEN)
+        if (sent != pkt_len)
         {
             ESP_LOGW(TAG, "sendto incomplete: sent=%d errno=%d", (int)sent, errno);
             ret = ESP_FAIL;

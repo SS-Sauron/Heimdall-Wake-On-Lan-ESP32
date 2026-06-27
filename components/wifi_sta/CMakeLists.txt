@@ -13,4 +13,5 @@ idf_component_register(
         esp_timer
         espressif__mdns
         lwip
+        status_led
 )

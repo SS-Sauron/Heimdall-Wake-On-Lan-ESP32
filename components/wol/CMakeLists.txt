@@ -7,6 +7,8 @@ idf_component_register(
         lwip
         esp_netif
         esp_timer
+    PRIV_REQUIRES
+        storage
 )
 
 # Ping feedback requires the MQTT client to publish results and opsec.h

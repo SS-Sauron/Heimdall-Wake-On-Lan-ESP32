@@ -10,7 +10,7 @@
  *   SUBSCRIBED  → log confirmation, cancel OTA rollback
  *   DATA        → detect_command_type()
  *                 ├─ GPIO: gpio_handle_command() [if CONFIG_WOL_GPIO_COMMANDS]
- *                 └─ WoL:  opsec_parse_payload() → wol_send() → publish_status()
+ *                 └─ WoL:  opsec_parse_payload() → wol_send_raw() → publish_status()
  *                          → [optional] opsec_extract_ip() → wol_ping_start()
  *   DISCONNECTED→ log (client auto-reconnects)
  *   ERROR       → log TLS / TCP details
@@ -34,6 +34,7 @@
 #include "esp_ota_ops.h"
 #include "esp_crt_bundle.h"
 #include "cJSON.h"
+#include "status_led.h"
 #if CONFIG_WOL_GPIO_COMMANDS
 #include "driver/gpio.h"
 #endif
@@ -97,6 +98,11 @@ static void publish_log(const char *payload)
 
 static void publish_wol_status(const uint8_t mac[6], esp_err_t wol_result)
 {
+    /* Flash the LED regardless of whether the response channel is enabled */
+    if (wol_result == ESP_OK) {
+        status_led_set_state(STATUS_LED_STATE_WOL_SENT);
+    }
+
 #if CONFIG_WOL_RESPONSE_CHANNEL
     if (s_client == NULL)
         return;
@@ -294,6 +300,7 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
     {
 
     case MQTT_EVENT_CONNECTED:
+        status_led_set_state(STATUS_LED_STATE_READY);
         ESP_LOGI(TAG, "MQTT connected — subscribing to: %s", s_cmd_topic);
         esp_mqtt_client_subscribe(client, s_cmd_topic, 1);
         /* Publish "online" to status topic with retain so home automation

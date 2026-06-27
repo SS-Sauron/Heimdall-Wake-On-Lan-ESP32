@@ -20,6 +20,7 @@
 #include "esp_timer.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
+#include "status_led.h"
 
 static const char *TAG = "wifi_sta";
 
@@ -105,6 +106,7 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t base,
 
     /* ADDITIONAL PROBLEM 1 FIX: removed vTaskDelay here — never block
      * the WiFi event task. Call esp_wifi_connect() directly. */
+    status_led_set_state(STATUS_LED_STATE_CONNECTING);
     esp_wifi_connect();
 }
 
@@ -129,6 +131,7 @@ static void on_got_ip(void *arg, esp_event_base_t base,
      * the counter this cycle; it will be cleared on the next successful boot. */
     storage_set_reboot_count(0);
 
+    status_led_set_state(STATUS_LED_STATE_READY);
     xEventGroupSetBits(s_wifi_events, STA_CONNECTED_BIT);
 }
 
@@ -185,6 +188,7 @@ esp_err_t wifi_sta_connect(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "Connecting to SSID: %s", creds.wifi_ssid);
+    status_led_set_state(STATUS_LED_STATE_CONNECTING);
     esp_wifi_connect();
 
     /* Block indefinitely — two internal escape hatches prevent a permanent hang:

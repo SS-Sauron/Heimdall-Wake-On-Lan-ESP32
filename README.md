@@ -57,6 +57,8 @@ You send a command. Heimdall wakes your machine. That's it.
 | 🏷️ | **Custom Hostname** — Set your own device name, synced to DHCP, mDNS, and NetBIOS |
 | 🏓 | **Ping Feedback** — Optionally confirm PC awake status via ICMP echo requests |
 | 🔌 | **GPIO Output Control** — Remotely toggle specific ESP32 pins (e.g. for physical relays). Secured by TOTP in HARDENED builds |
+| 🛡️ | **SecureOn Password** — Wake modern motherboards that require a 6-byte SecureOn password appended to the magic packet |
+| 💡 | **Status LED** — Visual feedback for portal, connecting, ready, and wake-sent states |
 
 ---
 
@@ -72,6 +74,8 @@ You send a command. Heimdall wakes your machine. That's it.
 | Dynamic Broadcast Address | ✅ | ✅ |
 | Ping Feedback (ICMP) | ✅ | ✅ |
 | GPIO Output Control | ✅ | ✅ |
+| SecureOn Password | ✅ | ✅ |
+| Status LED Feedback | ✅ | ✅ |
 | TOTP Command Authentication | ❌ | ✅ |
 | HMAC-Derived MQTT Topics | ❌ | ✅ |
 | MAC Address Spoofing | ❌ | ✅ |
@@ -86,6 +90,7 @@ You send a command. Heimdall wakes your machine. That's it.
 - **ESP32** (classic) development board
 - Connected to your local WiFi network
 - Access to an MQTT broker (local or cloud, port 1883 or 8883 TLS)
+- *(Optional)* An LED connected to GPIO2 (or configured pin) for visual status feedback
 
 That's it. No extra components required.
 
@@ -107,6 +112,9 @@ Check the active environment with:
 ```bash
 idf.py --version
 ```
+
+> [!NOTE]
+> **IDE Code Intelligence:** A `.clangd` configuration file is included in the repository root. It strips Xtensa GCC-specific flags (`-mlongcalls`, `-fstrict-volatile-bitfields`, etc.) that the IDE's clangd language server does not understand. Without it your IDE may show false-positive errors for standard headers like `string.h`. The firmware build via `idf.py` is completely unaffected.
 
 ---
 
@@ -422,12 +430,14 @@ Heimdall/
 │   ├── mqtt_relay/     # MQTT client & WoL dispatch core
 │   ├── opsec/          # HMAC topics, TOTP, SNTP
 │   ├── portal/         # Provisioning web server
+│   ├── status_led/     # Visual status LED feedback
 │   ├── storage/        # NVS credential persistence
 │   ├── wifi_sta/       # WiFi station with self-healing
-│   └── wol/            # Magic packet builder & broadcaster
+│   └── wol/            # Magic packet builder & broadcaster (SecureOn support)
 ├── main/               # Boot sequence & orchestration
 ├── resources/          # README images and visual design assets
 ├── scripts/            # MQTT trigger helpers and Windows WoL setup helper
+├── .clangd             # IDE language server config (clangd + ESP-IDF/GCC compatibility)
 ├── partitions.csv      # OTA-ready dual-slot partition table
 └── sdkconfig.defaults  # Baseline Kconfig configuration
 ```

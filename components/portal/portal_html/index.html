@@ -250,6 +250,13 @@
 <input aria-label="Hostname" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none" id="hostname" maxlength="32" placeholder="e.g. my-relay" type="text"/>
 </div>
 </div>
+<div class="mb-6 relative group">
+<label class="block text-label-caps font-label-caps text-on-surface-variant mb-2">SecureOn Password <span class="text-tower-grey lowercase">(optional)</span></label>
+<div class="relative">
+<div class="absolute left-0 top-0 bottom-0 w-[2px] bg-oracle-gold scale-y-0 group-focus-within:scale-y-100 transition-transform origin-bottom duration-200"></div>
+<input aria-label="SecureOn Password" class="w-full bg-transparent border-0 border-b border-tower-grey text-on-surface focus:ring-0 focus:border-oracle-gold transition-colors py-3 pl-3 font-code-sm text-code-sm leading-6 rounded-none uppercase" id="secureonPwd" maxlength="17" placeholder="e.g. AA:BB:CC:DD:EE:FF" type="text"/>
+</div>
+</div>
 </fieldset>
 <!-- Action Button -->
 <div class="pt-8 mt-8 border-tower-grey relative">
@@ -398,37 +405,45 @@ async function submit() {
   document.getElementById('errMsg').style.display = 'none';
   document.getElementById('okMsg').style.display  = 'none';
 
-  const ssidSel = document.getElementById('ssid').value;
-  const ssid    = ssidSel === '__manual__'
-    ? document.getElementById('ssidManual').value.trim()
-    : ssidSel;
-  if (!ssid) { showErr('No network selected — run a scan or enter manually'); return; }
+  const el = (id) => document.getElementById(id);
+  const ssidSel = el('ssid').value;
+  const ssid = ssidSel === '__manual__' ? el('ssidManual').value.trim() : ssidSel;
+  const mqttUrl = el('mqttUrl').value.trim();
+  const mqttPort = parseInt(el('mqttPort').value, 10);
+  const wifi_p = el('wifiPass').value;
+  const user = el('mqttUser').value.trim();
+  const pass = el('mqttPass').value;
+  const hname = el('hostname').value.trim();
+  const secureon = el('secureonPwd').value.trim();
 
-  const mqttUrl  = document.getElementById('mqttUrl').value.trim();
-  const mqttPort = parseInt(document.getElementById('mqttPort').value, 10);
-  if (!mqttUrl)                         { showErr('MQTT broker hostname is required'); return; }
+  if (!ssid) { showErr('No network selected — run a scan or enter manually'); return; }
+  if (!mqttUrl) { showErr('MQTT broker hostname is required'); return; }
   if (mqttPort < 1 || mqttPort > 65535) { showErr('Port must be between 1 and 65535'); return; }
 
   const payload = {
     wifi_ssid: ssid,
-    wifi_pass: document.getElementById('wifiPass').value,
+    wifi_pass: wifi_p,
     mqtt_url:  mqttUrl,
     mqtt_port: mqttPort,
-    mqtt_user: document.getElementById('mqttUser').value.trim(),
-    mqtt_pass: document.getElementById('mqttPass').value,
+    mqtt_user: user,
+    mqtt_pass: pass,
   };
 
-  const hn = document.getElementById('hostname').value.trim();
-  if (hn.length > 0) {
-    if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,30}[a-zA-Z0-9])?$/.test(hn)) {
+  if (hname.length > 0) {
+    if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,30}[a-zA-Z0-9])?$/.test(hname)) {
       showErr('Hostname: letters, digits and hyphens only; cannot start or end with a hyphen');
       return;
     }
-    payload.hostname = hn;
+    payload.hostname = hname;
+  }
+  
+  if (secureon.length > 0) {
+    payload.secureon_pwd = secureon;
   }
 
   log('SYS', `Provisioning: SSID=${ssid} broker=${mqttUrl}:${mqttPort}`);
   if (payload.hostname) log('INFO', `Hostname override: ${payload.hostname}`);
+  if (payload.secureon_pwd) log('INFO', `SecureOn enabled`);
   log('SYS', 'Writing credentials to NVS flash...');
 
   const btn = document.getElementById('submitBtn');

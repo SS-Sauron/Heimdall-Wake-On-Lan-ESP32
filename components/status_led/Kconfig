@@ -1,0 +1,21 @@
+menu "Status LED Configuration"
+
+    config WOL_STATUS_LED
+        bool "Enable Status LED Feedback"
+        default y
+        help
+            Enable visual feedback via an LED for device states.
+            - Fast Blink: Captive Portal Active
+            - Slow Pulse: Connecting to WiFi/MQTT
+            - Solid: Connected and Ready
+            - Rapid Flash: Wake-on-LAN Magic Packet Dispatched
+
+    config WOL_STATUS_LED_PIN
+        int "Status LED GPIO Pin"
+        default 2
+        depends on WOL_STATUS_LED
+        help
+            The GPIO pin connected to the status LED.
+            On many ESP32 dev boards, this is GPIO 2.
+
+endmenu

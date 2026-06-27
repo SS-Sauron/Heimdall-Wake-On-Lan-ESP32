@@ -1,0 +1,32 @@
+# .clangd — Clangd language server configuration for ESP-IDF (Xtensa GCC) projects.
+#
+# The ESP-IDF build system generates compile_commands.json using the Xtensa
+# GCC toolchain, which passes GCC-specific flags that the LLVM/Clang parser
+# used by clangd does not recognise:
+#
+#   -mlongcalls, -fno-shrink-wrap, -fstrict-volatile-bitfields,
+#   -fno-tree-switch-conversion, -fzero-init-padding-bits=all,
+#   -fno-malloc-dce, ...
+#
+# Without this file, clangd aborts flag processing at the first unknown flag,
+# which cascades into spurious "file not found" errors for standard headers
+# (string.h, stdint.h, ...) and false-positive "use of undeclared identifier"
+# errors for memset, memcpy, strlen, etc. None of those are real bugs.
+#
+# The Remove directive strips all -m* and -f* flags before clangd evaluates
+# the compilation commands. The GCC build itself is unaffected — this file
+# is read only by the IDE language server, never by idf.py or cmake.
+#
+# References:
+#   https://docs.espressif.com/projects/espressif-ide/en/latest/additionalfeatures/clangd_cdt_support.html
+#   https://developer.espressif.com/blog/espressif-ide-lsp-support/#clangd-setup
+#   https://clangd.llvm.org/config
+
+CompileFlags:
+  # compile_commands.json is written to the build/ directory by CMake.
+  CompilationDatabase: build
+
+  # Remove Xtensa-GCC-specific flags that are unknown to clangd/LLVM.
+  # -m* covers machine-architecture flags (-mlongcalls, etc.)
+  # -f* covers GCC optimisation/code-gen flags not in the Clang flag set.
+  Remove: [-m*, -f*]
