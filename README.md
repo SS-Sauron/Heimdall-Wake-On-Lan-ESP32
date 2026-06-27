@@ -70,6 +70,8 @@ You send a command. Heimdall wakes your machine. That's it.
 | OTA Dual-Slot Partition | ✅ | ✅ |
 | Self-Healing WiFi Recovery | ✅ | ✅ |
 | Dynamic Broadcast Address | ✅ | ✅ |
+| Ping Feedback (ICMP) | ✅ | ✅ |
+| GPIO Output Control | ✅ | ✅ |
 | TOTP Command Authentication | ❌ | ✅ |
 | HMAC-Derived MQTT Topics | ❌ | ✅ |
 | MAC Address Spoofing | ❌ | ✅ |
@@ -214,7 +216,8 @@ I (2875) wifi_sta: Got IP: <local-ip>
 I (2876) main: WiFi connected
 I (2879) main: Starting MQTT relay
 I (2881) opsec: Command  topic: wol/<device-mac>
-I (2885) opsec: Response topic: wol/<device-mac>/r
+I (2885) opsec: Status   topic: wol/<device-mac>/s
+I (2887) opsec: Log      topic: wol/<device-mac>/l
 I (2893) mqtt_relay: Connecting to MQTT broker: mqtts://<cluster>.hivemq.cloud:8883
 I (2900) mqtt_relay: MQTT credential lengths: username=<len> password=<len>
 I (2906) mqtt_relay: TLS hostname verification/SNI: enabled via broker URI hostname
