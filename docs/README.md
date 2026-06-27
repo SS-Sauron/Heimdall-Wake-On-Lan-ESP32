@@ -233,7 +233,8 @@ Active in HARDENED builds only (gated by `CONFIG_OPSEC_HMAC_TOPIC` and `CONFIG_O
 
 MQTT topics are derived by computing `HMAC-SHA256(secret, device_MAC)` and hex-encoding portions of the digest:
 - Command topic: bytes 0–7 of digest → 16 hex characters
-- Response topic: bytes 8–15 of digest → 16 hex characters
+- Status topic: `<command_topic>/s` — retained, machine-readable state
+- Log topic: `<command_topic>/l` — unretained, diagnostic heartbeats
 
 The secret is a 32-byte random blob generated once during provisioning and stored in NVS. The same device always produces the same topics (deterministic), but the topics reveal nothing about the device's purpose or MAC address to a broker observer.
 
@@ -262,7 +263,7 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 **Startup sequence inside `mqtt_relay_start()`:**
 1. `opsec_init()` — loads HMAC secret and TOTP seed from NVS
 2. `opsec_sync_clock()` — SNTP time sync (no-op in STANDARD builds)
-3. `opsec_derive_topics()` — computes command and response topic strings
+3. `opsec_derive_topics()` — computes command, status (`/s`), and log (`/l`) topic strings
 4. `storage_load_credentials()` — reads MQTT broker URL, port, username, password
 5. Builds broker URI: `mqtt://` for port 1883, `mqtts://` for 8883
 6. Logs broker URI, MQTT username/password lengths, and whether TLS hostname verification/SNI is enabled; raw credentials are never logged
@@ -274,23 +275,34 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 
 | Event | Action |
 |---|---|
-| `MQTT_EVENT_CONNECTED` | Subscribe to command topic (QoS 1), publish `{"status":"online"}` retained |
+| `MQTT_EVENT_CONNECTED` | Subscribe to command topic (QoS 1), publish `{"status":"online"}` retained to **status topic** |
 | `MQTT_EVENT_SUBSCRIBED` | Call `esp_ota_mark_app_valid_cancel_rollback()` — firmware proven functional |
-| `MQTT_EVENT_DATA` | Parse payload → TOTP validate (if enabled) → `wol_send_raw()` → publish response |
+| `MQTT_EVENT_DATA` | Detect command type (WoL or GPIO) → validate (TOTP if HARDENED) → dispatch → publish result to **status topic** |
 | `MQTT_EVENT_DISCONNECTED` | Log only — client auto-reconnects |
 | `MQTT_EVENT_ERROR` | Log TLS/TCP details; on `CONNECTION_REFUSED` with bad-credentials code → `storage_erase_all()` + reboot |
 
-**Response payload:**
+**Status topic payload** (retained, QoS 1) — published after each WoL or GPIO command:
 ```json
 {
   "mac": "AA:BB:CC:DD:EE:FF",
-  "status": "sent",
+  "status": "sent"
+}
+```
+
+**Log topic payload** (unretained, QoS 0) — published on connect and periodically by the health monitor:
+```json
+{
   "free_heap": 187432,
   "uptime_s": 3672
 }
 ```
 
-**Health monitor loop:** Wakes every 5 minutes to log uptime at `DEBUG` level. No other logic — the MQTT client handles reconnection internally.
+**GPIO confirmation payload** (status topic, QoS 1):
+```json
+{"action": "gpio", "pin": 4, "level": 1, "status": "ok"}
+```
+
+**Health monitor loop:** Wakes every 5 minutes and publishes a JSON heartbeat to the **log topic** (`/l`). The MQTT client handles reconnection internally.
 
 **Wrong MQTT credential recovery:** If the broker returns `MQTT_CONNECTION_REFUSE_NOT_AUTHORIZED` or `MQTT_CONNECTION_REFUSE_BAD_USERNAME`, retrying forever with the same credentials is pointless. Heimdall erases all stored credentials and reboots into the captive portal, exactly as it does for wrong WiFi passwords.
 
@@ -324,8 +336,9 @@ Profiles are selected via `idf.py menuconfig` or by setting Kconfig symbols in `
 
 **STANDARD** — Default. No OPSEC features active. MQTT topics are human-readable:
 ```text
-Command topic:  wol/AA:BB:CC:DD:EE:FF
-Response topic: wol/AA:BB:CC:DD:EE:FF/r
+Command topic: wol/AA:BB:CC:DD:EE:FF
+Status topic:  wol/AA:BB:CC:DD:EE:FF/s
+Log topic:     wol/AA:BB:CC:DD:EE:FF/l
 ```
 
 **HARDENED** — Enable by setting `CONFIG_WOL_PROFILE_HARDENED=y` or individually enabling the OPSEC Kconfig options. All four OPSEC features activate:
@@ -360,6 +373,10 @@ Key Kconfig symbols. All configurable via `idf.py menuconfig`.
 | `CONFIG_PORTAL_AP_MAX_CONN` | 1 | Maximum simultaneous provisioning clients |
 | `CONFIG_PORTAL_TIMEOUT_SEC` | 180 | Portal timeout in seconds (0 = wait forever) |
 | `CONFIG_STORAGE_NVS_NAMESPACE` | wol | NVS namespace used for all persisted configuration |
+| `CONFIG_WOL_PING_FEEDBACK` | n | Enable ICMP ping after WoL to confirm machine boot |
+| `CONFIG_WOL_GPIO_COMMANDS` | n | Enable GPIO pin control via MQTT JSON commands |
+| `CONFIG_WOL_GPIO_ALLOWED_PINS` | "4,5" | Comma-separated list of pins that may be driven remotely |
+| `CONFIG_WOL_LEGACY_RSP_TOPIC` | n | Also publish responses to the legacy `/r` topic for backwards compatibility |
 
 ---
 
@@ -397,7 +414,7 @@ For TLS connections, the broker URI hostname is also used for certificate hostna
 
 On connection, Heimdall registers a LWT message:
 ```text
-Topic:   <response_topic>
+Topic:   <status_topic>  (e.g. wol/<device-mac>/s)
 Payload: {"status":"offline"}
 QoS:     1
 Retain:  true
@@ -405,26 +422,46 @@ Retain:  true
 
 When the device connects successfully it publishes:
 ```text
-Topic:   <response_topic>
+Topic:   <status_topic>
 Payload: {"status":"online"}
 QoS:     1
 Retain:  true
 ```
 
-This means any MQTT client subscribed to the response topic always knows the current device state without polling.
+This means any MQTT client subscribed to the status topic always knows the current device state without polling.
 
 ### Command Format
 
-**STANDARD build:**
+**STANDARD build — plain WoL:**
 ```text
 AA:BB:CC:DD:EE:FF
 ```
 
-**HARDENED build with TOTP:**
+**STANDARD build — WoL with Ping Feedback:**
+```json
+{"mac":"AA:BB:CC:DD:EE:FF", "ip":"192.168.1.100"}
+```
+
+**STANDARD build — GPIO control:**
+```json
+{"action":"gpio", "pin":4, "level":1}
+```
+
+**HARDENED build with TOTP — WoL:**
 ```text
 AA:BB:CC:DD:EE:FF:123456
 ```
-The payload is a plain string: MAC address, colon separator, 6-digit TOTP code. No JSON wrapper in TOTP mode — the format is intentionally compact and non-descriptive.
+The payload is a plain string: MAC address, colon separator, 6-digit TOTP code. No JSON wrapper — the format is intentionally compact and non-descriptive.
+
+**HARDENED build with TOTP — WoL with Ping Feedback:**
+```text
+AA:BB:CC:DD:EE:FF:123456:192.168.1.100
+```
+
+**HARDENED build — GPIO control (JSON with TOTP):**
+```json
+{"action":"gpio", "pin":4, "level":1, "totp":123456}
+```
 
 ---
 
