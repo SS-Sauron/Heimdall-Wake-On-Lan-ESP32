@@ -44,6 +44,9 @@ static const char *TAG = "mqtt_relay";
 static char s_cmd_topic[OPSEC_TOPIC_MAX_LEN];
 static char s_status_topic[OPSEC_TOPIC_MAX_LEN]; /* /s — machine JSON, retained */
 static char s_log_topic[OPSEC_TOPIC_MAX_LEN];    /* /l — human diagnostics, not retained */
+#if CONFIG_WOL_LEGACY_RSP_TOPIC
+static char s_rsp_topic[OPSEC_TOPIC_MAX_LEN];    /* /r — legacy compat topic */
+#endif
 static esp_mqtt_client_handle_t s_client = NULL;
 
 /* --------------------------------------------------------------------------
@@ -67,8 +70,8 @@ static void publish_status(const char *payload)
         ESP_LOGD(TAG, "Status published: %s", payload);
 
 #if CONFIG_WOL_LEGACY_RSP_TOPIC
-    /* Duplicate to legacy topic for backward compatibility */
-    esp_mqtt_client_publish(s_client, s_log_topic, payload, 0, 1, 0);
+    /* Duplicate to legacy /r topic for backward compatibility */
+    esp_mqtt_client_publish(s_client, s_rsp_topic, payload, 0, 1, 0);
 #endif
 #else
     (void)payload;
@@ -464,6 +467,12 @@ void mqtt_relay_start(void)
      * ------------------------------------------------------------------ */
     ESP_ERROR_CHECK(opsec_derive_topics(s_cmd_topic, s_status_topic, s_log_topic));
 
+#if CONFIG_WOL_LEGACY_RSP_TOPIC
+    /* Build legacy /r topic: same base as cmd_topic but with /r suffix */
+    snprintf(s_rsp_topic, sizeof(s_rsp_topic), "%s/r", s_cmd_topic);
+    ESP_LOGI(TAG, "Legacy   topic: %s (WOL_LEGACY_RSP_TOPIC=y)", s_rsp_topic);
+#endif
+
 #if CONFIG_WOL_GPIO_COMMANDS
     gpio_init_allowed_pins();
 #endif
@@ -546,8 +555,7 @@ void mqtt_relay_start(void)
      *
      * The esp_mqtt_client handles reconnection internally. This loop
      * keeps the calling task alive (preventing main from returning)
-     * and provides a place to add future health checks (e.g. watchdog
-     * kicks, periodic RSSI logging, uptime heartbeat publishing).
+     * and publishes periodic health heartbeats to the /l log topic.
      * ------------------------------------------------------------------ */
     while (true)
     {
