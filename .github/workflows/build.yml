@@ -48,7 +48,9 @@ jobs:
 
       - name: Rename app binary to profile-specific name
         if: success()
-        run: cp build/wol_relay.bin build/${{ matrix.bin_name }}
+        run: |
+          sudo chown -R $USER:$USER build || true
+          cp build/wol_relay.bin build/${{ matrix.bin_name }}
 
       - name: Report binary size
         if: success()
