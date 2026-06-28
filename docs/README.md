@@ -589,6 +589,19 @@ Keys `hs` and `ts` are generated once during provisioning and never transmitted 
 
 ---
 
+## Web Flasher & CI/CD Pipeline
+
+Heimdall includes an automated CI/CD pipeline built with GitHub Actions (`.github/workflows/build.yml`) that compiles the firmware and deploys a browser-based Web Flasher to GitHub Pages.
+
+**Architecture:**
+- **Build Matrix:** The workflow compiles both `STANDARD` and `HARDENED` profiles concurrently using the official `esp-idf-ci-action`.
+- **ESP Web Tools:** The flasher UI (`docs/index.html`) is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/), enabling direct-from-browser flashing via Web Serial.
+- **Manifests:** Two JSON manifests (`docs/manifest_standard.json` and `docs/manifest_hardened.json`) map the compiled binaries (`bootloader.bin`, `partition-table.bin`, `heimdall-*.bin`) to their required flash offsets.
+- **Artifact Flattening:** To prevent 404 errors caused by GitHub Actions preserving the build directory structure, all compiled binaries are aggressively flattened into the root artifact directory before upload.
+- **Deployment Mechanics:** Pushing to the `main` branch automatically deploys the Web Flasher to GitHub Pages (which natively satisfies GitHub's default environment protection rules). Pushing a Git tag (`v1.0.0`) automatically creates a GitHub Release and attaches the compiled binaries for manual download.
+
+---
+
 ## Development Environment
 
 ### IDE Code Intelligence (clangd)
