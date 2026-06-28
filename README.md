@@ -414,14 +414,14 @@ Any RFC 6238-compatible authenticator app or trigger script can generate codes f
 
 ### ✦ Status LED Patterns
 
-If you connected an LED to GPIO2 (or your configured `CONFIG_STATUS_LED_GPIO`), Heimdall provides real-time visual feedback:
+If you connected an LED to GPIO2 (or your configured `CONFIG_WOL_STATUS_LED_PIN`), Heimdall provides real-time visual feedback:
 
 | State | LED Pattern | Description |
 |---|---|---|
-| **Portal Mode** | Rapid Blinking (5Hz) | Waiting for you to connect to the Heimdall WiFi setup portal |
-| **Connecting** | Slow Blinking (1Hz) | Attempting to connect to WiFi and the MQTT broker |
+| **Portal Mode** | Fast Blink (~2.5Hz) | Waiting for you to connect to the Heimdall WiFi setup portal |
+| **Connecting** | Slow Pulse (~0.5Hz) | Attempting to connect to WiFi and the MQTT broker |
 | **Ready** | Solid ON | Connected and actively listening for wake commands |
-| **Wake Sent** | 5x Rapid Flashes | Magic packet successfully dispatched |
+| **Wake Sent** | 6 Rapid Flashes (50ms) | Magic packet dispatched — returns to Ready automatically |
 
 ---
 

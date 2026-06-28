@@ -29,7 +29,10 @@ All commands, MAC addresses, broker names, and secrets shown here are placeholde
 7. [MQTT Protocol](#mqtt-protocol)
 8. [Wake-on-LAN](#wake-on-lan)
 9. [Self-Healing & Recovery](#self-healing--recovery)
-10. [NVS Storage Schema](#nvs-storage-schema)
+10. [OTA Updates](#ota-updates)
+11. [NVS Storage Schema](#nvs-storage-schema)
+12. [Web Flasher & CI/CD Pipeline](#web-flasher--cicd-pipeline)
+13. [Development Environment](#development-environment)
 
 ---
 
@@ -340,10 +343,10 @@ This works correctly on any subnet — 192.168.x.x, 10.x.x.x, 172.16.x.x, or any
 **Files:** `components/status_led/status_led.c`, `components/status_led/status_led.h`
 
 Provides visual feedback using a single GPIO pin (typically the built-in LED). Runs a low-priority FreeRTOS task that manages blink patterns based on system state:
-- Fast blink (200ms) during portal provisioning
-- Slow pulse (1000ms) while connecting to WiFi/MQTT
-- Solid ON when ready and listening for commands
-- Rapid flash sequence when a WoL packet is dispatched
+- **Portal Mode** — toggles every 200ms (fast blink ~2.5Hz)
+- **Connecting** — toggles every 1000ms (slow pulse ~0.5Hz)
+- **Ready** — solid ON
+- **Wake Sent** — 6 rapid toggles at 50ms each, then automatically returns to READY
 
 ---
 
@@ -363,6 +366,8 @@ Log topic:     wol/AA:BB:CC:DD:EE:FF/l
 - `CONFIG_OPSEC_IDENTITY_FAKE_HOSTNAME=y`
 - `CONFIG_OPSEC_HMAC_TOPIC=y`
 - `CONFIG_OPSEC_TOTP=y`
+
+**CUSTOM** — All features off by default. Configure each option individually via `idf.py menuconfig`. For advanced users who want a specific combination of features without enabling the full HARDENED set.
 
 ---
 
