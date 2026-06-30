@@ -8,3 +8,24 @@ node_modules/
 sdkconfig.old
 node_modules/
 sdkconfig.old
+
+# Agent scratch folder
+scratch/
+
+# Local cache
+.cache/
+
+# PyInstaller build artifacts
+*.spec
+experimental/scripts/build/
+
+# Old locked executable
+experimental/scripts/sleep_listener.exe
+
+# Tailwind & Web Flasher work files
+fix_html.py
+process_html.py
+input.css
+output.css
+tailwind.config.js
+tailwindcss_v3.exe
