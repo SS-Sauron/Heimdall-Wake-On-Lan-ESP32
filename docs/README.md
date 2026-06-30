@@ -500,6 +500,21 @@ Heimdall broadcasts the magic packet as a UDP datagram to the computed subnet br
 
 ---
 
+## Remote PC Sleep
+
+While Wake-on-LAN handles booting up, Heimdall also provides a secure companion tool to put machines back to sleep. The companion script (`experimental/scripts/sleep_listener.py` or `.exe`) connects directly to the MQTT broker and listens for commands on a designated topic.
+
+**Architecture:**
+- **Windows:** Uses the `SetSuspendState` API via `ctypes.windll.powrprof` for reliable system suspension.
+- **Linux:** Executes `systemctl suspend` (requires root/systemd privileges).
+- **macOS:** Executes `pmset sleepnow`.
+- **Network Resilience:** The script uses `paho-mqtt` and is designed to run indefinitely as a background service. When the PC sleeps, the network connection is severed. Upon waking, the script automatically reconnects to the MQTT broker without user intervention.
+- **One-Shot Mode:** Alternatively, the script can be run with `--one-shot` to execute a single sleep sequence and exit immediately.
+
+For full details on configuring the companion script as a permanent background service, see the [PC Sleep Listener Guide](pc_sleep_listener.md).
+
+---
+
 ## Self-Healing & Recovery
 
 Heimdall implements two independent recovery paths for WiFi failures and one for MQTT credential failures.

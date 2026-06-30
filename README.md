@@ -59,6 +59,7 @@ You send a command. Heimdall wakes your machine. That's it.
 | 🏓 | **Ping Feedback** — Optionally confirm PC awake status via ICMP echo requests |
 | 🔌 | **GPIO Output Control** — Remotely toggle specific ESP32 pins (e.g. for physical relays). Secured by TOTP in HARDENED builds |
 | 🛡️ | **SecureOn Password** — Wake modern motherboards that require a 6-byte SecureOn password appended to the magic packet |
+| 💤 | **PC Sleep Companion** — Includes a cross-platform companion script to securely put your PC to sleep remotely via MQTT |
 | 💡 | **Status LED** — Visual feedback for portal, connecting, ready, and wake-sent states |
 | 🔁 | **Crash Loop Detection** — Counts consecutive firmware crashes in NVS and automatically falls back to the captive portal after 5 panics |
 | 🌍 | **Web Flasher** — Flash firmware directly from your browser via USB. No IDE or toolchain required |
@@ -294,6 +295,14 @@ Log:      <16-character-hmac-topic-base>/l
 ```
 
 HARDENED topics are opaque strings derived from the device MAC and a secret generated during provisioning. They are printed to the serial monitor during relay startup.
+
+---
+
+### ✦ Putting a PC to Sleep
+
+Heimdall includes a cross-platform companion script (`sleep_listener.py` and `sleep_listener.exe`) that can run silently on your target PC. When it receives a specific sleep command via your MQTT broker, it triggers the OS to sleep (or suspend) immediately.
+
+For full setup instructions, see the **[PC Sleep Listener Guide](docs/pc_sleep_listener.md)**.
 
 ---
 
