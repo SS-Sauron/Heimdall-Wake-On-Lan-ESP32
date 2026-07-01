@@ -578,7 +578,7 @@ Heimdall supports over-the-air (OTA) updates. The partition table is dual-slot (
 Use one of these methods to update firmware today:
 
 **Option A — Web Flasher (recommended, no tools needed)**
-Visit [https://ss-sauron.github.io/Heimdall/](https://ss-sauron.github.io/Heimdall/), connect your ESP32 via USB, and flash directly from the browser.
+Visit [https://ss-sauron.github.io/Heimdall-Wake-On-Lan-ESP32/](https://ss-sauron.github.io/Heimdall-Wake-On-Lan-ESP32/), connect your ESP32 via USB, and flash directly from the browser.
 
 **Option B — Build from source**
 ```bash

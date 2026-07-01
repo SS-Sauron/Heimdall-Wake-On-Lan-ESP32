@@ -12,7 +12,7 @@
 
 [![Version](https://img.shields.io/badge/version-v0.5.0-blueviolet?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/SS-Sauron/Heimdall/build.yml?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/actions/workflows/build.yml)
-[![Web Flasher](https://img.shields.io/badge/Web%20Flasher-Live-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ss-sauron.github.io/Heimdall/)
+[![Web Flasher](https://img.shields.io/badge/Web%20Flasher-Live-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ss-sauron.github.io/Heimdall-Wake-On-Lan-ESP32/)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v6.0.1-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://idf.espressif.com/)
 [![Platform](https://img.shields.io/badge/ESP32-classic-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-brightgreen?style=for-the-badge)](LICENSE)
@@ -40,7 +40,11 @@ Configure it once through the built-in captive portal — then forget it exists.
                                     Always Watching
 ```
 
-You send a command. Heimdall wakes your machine. That's it.
+Heimdall is a complete remote power management and network security tool built for the ESP32. Out of the box, it provides:
+- **Wake-on-LAN**: Broadcasts magic packets to wake sleeping PCs across any local subnet.
+- **Remote PC Sleep**: Includes a companion listener script to securely put your PC back to sleep via MQTT.
+- **GPIO Control**: Allows you to remotely toggle physical relays or indicators wired to the ESP32.
+- **Stealth & OPSEC**: Can be configured to operate completely invisibly with MAC spoofing, fake hostnames, HMAC-derived MQTT topics, and TOTP authentication to prevent unauthorized network control.
 
 ---
 
@@ -107,7 +111,7 @@ That's it. No extra components required.
 
 The easiest way to install Heimdall is directly from your browser using the official Web Flasher. You don't need to install any development tools or compile anything from source.
 
-**[🚀 Launch the Heimdall Web Flasher](https://ss-sauron.github.io/Heimdall/)**
+**[🚀 Launch the Heimdall Web Flasher](https://ss-sauron.github.io/Heimdall-Wake-On-Lan-ESP32/)**
 
 1. Connect your ESP32 to your computer via USB.
 2. Open the link above in a supported browser (Chrome, Edge, or Opera).
@@ -466,7 +470,7 @@ Heimdall uses a dual-slot OTA partition table with automatic rollback. If the ne
 > [!NOTE]
 > **Wireless OTA push is not yet implemented.** The OTA receiver task (listening on port 3232 for `espota.py` pushes) is planned for a future release. For now, use one of the following methods to update the firmware:
 >
-> - **[Web Flasher](https://ss-sauron.github.io/Heimdall/)** — Flash directly from your browser over USB. No tools required.
+> - **[Web Flasher](https://ss-sauron.github.io/Heimdall-Wake-On-Lan-ESP32/)** — Flash directly from your browser over USB. No tools required.
 > - **`idf.py flash`** — Rebuild from source and flash over USB with the ESP-IDF toolchain.
 
 The rollback guarantee is already active: once the new firmware successfully connects to your MQTT broker, it calls `esp_ota_mark_app_valid_cancel_rollback()` to permanently commit the update.
