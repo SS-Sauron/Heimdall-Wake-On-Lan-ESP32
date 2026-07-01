@@ -511,7 +511,7 @@ Heimdall broadcasts the magic packet as a UDP datagram to the computed subnet br
 
 ## Remote PC Sleep
 
-While Wake-on-LAN handles booting up, Heimdall also provides a secure companion tool to put machines back to sleep. The companion script (`experimental/scripts/sleep_listener.py` or `.exe`) connects directly to the MQTT broker and listens for commands on a designated topic.
+While Wake-on-LAN handles booting up, Heimdall also provides a secure companion tool to put machines back to sleep. The companion script (`scripts/sleep_listener.py` or `.exe`) connects directly to the MQTT broker and listens for commands on a designated topic.
 
 **Architecture:**
 - **Windows:** Uses the `SetSuspendState` API via `ctypes.windll.powrprof` for reliable system suspension.

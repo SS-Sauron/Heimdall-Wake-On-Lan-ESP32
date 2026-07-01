@@ -6,9 +6,9 @@ The script is fully cross-platform and works on Windows, Linux, and macOS.
 
 ## Available Versions
 
-Inside the `experimental/scripts/` directory, you will find two versions of the listener:
+Inside the `scripts/` directory, you will find two versions of the listener:
 1. **`sleep_listener.py`**: The raw Python script. Requires Python 3 and the `paho-mqtt` library.
-2. **`sleep_listener.exe`** (inside the `dist/` folder): A standalone compiled Windows executable. It requires **no dependencies** and can be run on any Windows machine out of the box.
+2. **`sleep_listener.exe`**: A standalone compiled Windows executable. It requires **no dependencies** and can be run on any Windows machine out of the box.
 
 ## Setup & Prerequisites 
 
