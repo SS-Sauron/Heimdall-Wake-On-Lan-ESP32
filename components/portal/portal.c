@@ -63,7 +63,7 @@ static const char *TAG = "portal";
 static esp_timer_handle_t s_portal_timeout_timer = NULL;
 
 static void portal_timeout_callback(void* arg) {
-    ESP_LOGE(TAG, "Portal abandoned by user (5 minute inactivity timeout) — rebooting");
+    ESP_LOGE(TAG, "Portal abandoned by user (%d second inactivity timeout) — rebooting", CONFIG_PORTAL_TIMEOUT_SEC);
     esp_restart();
 }
 
@@ -1075,7 +1075,9 @@ void portal_start(void)
     };
 
     if (esp_timer_create(&timer_args, &s_portal_timeout_timer) == ESP_OK) {
-        esp_timer_start_once(s_portal_timeout_timer, 300ULL * 1000000ULL);
+        if (CONFIG_PORTAL_TIMEOUT_SEC > 0) {
+            esp_timer_start_once(s_portal_timeout_timer, (uint64_t)CONFIG_PORTAL_TIMEOUT_SEC * 1000000ULL);
+        }
     }
 
     start_softap(ssid, s_portal_password);

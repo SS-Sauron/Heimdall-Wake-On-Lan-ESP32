@@ -85,13 +85,15 @@ The runtime is **event-driven**: WiFi events, IP events, and MQTT events are dis
 Every boot follows this exact sequence. Ordering is strict — deviating from it causes subtle failures (hostname applied before interface exists, WiFi starts before MAC is spoofed, etc.).
 
 ```text
-1.  nvs_flash_init()                   Initialize NVS flash partition
-2.  Factory reset button check         GPIO0 hold detection (blocking, 5 s)
+1.  Crash loop detection               Check esp_reset_reason() against RTC counter
+2.  nvs_flash_init()                   Initialize NVS flash partition
 3.  esp_netif_init()                   Initialize TCP/IP stack
 4.  esp_event_loop_create_default()    Create system event loop
 5.  mdns_init()                        Start mDNS service (one time only)
-6.  identity_apply()                   Spoof MAC, generate/load hostname
-7.  storage_is_provisioned()           Check for saved credentials in NVS
+6.  WiFi & LED init                    esp_wifi_init() and start status LED
+7.  Factory reset monitor              Spawn background task for GPIO0 hold detection
+8.  identity_apply()                   Spoof MAC, generate/load hostname
+9.  storage_is_provisioned()           Check for saved credentials in NVS
     │
     ├── NOT PROVISIONED ──► portal_start()
     │                       SoftAP + DNS + HTTP provisioning UI
@@ -118,7 +120,7 @@ The boot dispatcher. Calls each component in the correct order, handles the prov
 
 **Status LED init:** `status_led_init()` is called immediately after the WiFi driver is initialized (before the factory reset task spawns). It configures the GPIO pin as output and starts the blink task. The portal branch calls `status_led_set_state(STATUS_LED_STATE_PORTAL)` before `portal_start()` so the LED begins blinking as soon as provisioning mode is entered.
 
-**Crash loop detection:** On every boot, `esp_reset_reason()` is checked. If the reason is `ESP_RST_PANIC` or `ESP_RST_TASK_WDT` (genuine firmware crashes — not intentional software resets), a counter in NVS is incremented. Once that counter reaches the configured threshold (default: 5 consecutive crashes), `storage_erase_all()` is called and the device reboots into provisioning mode. Any successful WiFi connection resets the counter to zero.
+**Crash loop detection:** On every boot, `esp_reset_reason()` is checked. If the reason is `ESP_RST_PANIC` or `ESP_RST_TASK_WDT` (genuine firmware crashes — not intentional software resets), a counter in RTC memory is incremented. Once that counter reaches the configured threshold (default: 3 consecutive crashes), `storage_erase_all()` is called and the device reboots into provisioning mode. Because this counter is in RTC slow RAM, it survives watchdog and software resets, but is cleared on a full power cycle.
 
 **Factory reset button:** GPIO0 (the BOOT button on most ESP32 dev boards) is sampled at boot. If held for `CONFIG_WOL_FACTORY_RESET_HOLD_MS` (default: 5000 ms), all NVS credentials are erased and the device reboots into the captive portal. The detection uses a blocking polling loop with a 20 ms debounce — the entire rest of boot is paused while the button is held, which is intentional.
 
@@ -243,8 +245,8 @@ Active in HARDENED builds only (gated by `CONFIG_OPSEC_HMAC_TOPIC` and `CONFIG_O
 
 MQTT topics are derived by computing `HMAC-SHA256(secret, device_MAC)` and hex-encoding portions of the digest:
 - Command topic: bytes 0–7 of digest → 16 hex characters
-- Status topic: `<command_topic>/s` — retained, machine-readable state
-- Log topic: `<command_topic>/l` — unretained, diagnostic heartbeats
+- Status topic: bytes 8–15 of digest + `/s` — retained, machine-readable state
+- Log topic: bytes 8–15 of digest + `/l` — unretained, diagnostic heartbeats
 
 The secret is a 32-byte random blob generated once during provisioning and stored in NVS. The same device always produces the same topics (deterministic), but the topics reveal nothing about the device's purpose or MAC address to a broker observer.
 
@@ -397,10 +399,11 @@ Key Kconfig symbols. All configurable via `idf.py menuconfig`.
 | `CONFIG_OPSEC_TOTP_DIGITS` | 6 | TOTP code length |
 | `CONFIG_OPSEC_TOTP_STEP_SEC` | 30 | TOTP time step in seconds |
 | `CONFIG_OPSEC_SNTP_SERVER` | pool.ntp.org | SNTP server for TOTP clock sync |
+| `CONFIG_PORTAL_AP_SSID_PREFIX` | "NETGEAR-" | SoftAP SSID prefix for provisioning |
 | `CONFIG_PORTAL_HTTP_PORT` | 80 | Captive portal HTTP server port |
 | `CONFIG_PORTAL_AP_CHANNEL` | 6 | SoftAP WiFi channel |
 | `CONFIG_PORTAL_AP_MAX_CONN` | 1 | Maximum simultaneous provisioning clients |
-| `CONFIG_PORTAL_TIMEOUT_SEC` | 180 | Portal timeout in seconds (0 = wait forever) |
+| `CONFIG_PORTAL_TIMEOUT_SEC` | 300 | Portal timeout in seconds (0 = wait forever) |
 | `CONFIG_STORAGE_NVS_NAMESPACE` | wol | NVS namespace used for all persisted configuration |
 | `CONFIG_WOL_PING_FEEDBACK` | y (Standard) | Enable ICMP ping after WoL to confirm machine boot |
 | `CONFIG_WOL_GPIO_COMMANDS` | y (Standard) | Enable GPIO pin control via MQTT JSON commands |
@@ -561,7 +564,7 @@ If the MQTT broker explicitly rejects the connection (`MQTT_CONNECTION_REFUSE_NO
 
 ### Crash Loop Detection
 
-On each boot, if `esp_reset_reason()` is `ESP_RST_PANIC` or `ESP_RST_TASK_WDT`, a crash counter in NVS increments. After the configured threshold of consecutive genuine crashes, credentials are erased and the device falls back to provisioning. This counter resets on any successful WiFi connection. Intentional software resets (`ESP_RST_SW`) — from the portal, factory reset, or recovery paths — do not increment this counter.
+On each boot, if `esp_reset_reason()` is `ESP_RST_PANIC` or `ESP_RST_TASK_WDT`, a crash counter in RTC memory increments. After the configured threshold of consecutive genuine crashes, credentials are erased and the device falls back to provisioning. Because this counter is in RTC slow RAM, it resets to zero on a full power cycle. Intentional software resets (`ESP_RST_SW`) — from the portal, factory reset, or recovery paths — do not increment this counter.
 
 ---
 
@@ -573,7 +576,7 @@ Heimdall supports over-the-air (OTA) updates. The partition table is dual-slot (
 
 ### How to Update (Current)
 
-> **Note: Wireless OTA push is not yet implemented.** The OTA receiver task (port 3232, `espota.py` transport) is planned for a future release. `CONFIG_OTA_ALLOW_HTTP=y` in `sdkconfig.defaults` enables the *OTA client* to accept HTTP sources but does not start an OTA listener server.
+> **Note: The firmware-side OTA receiver task is not yet implemented.** The device cannot yet accept wireless firmware pushes over the network. The companion `scripts/ota_push.sh` helper (which uses `espota.py` on TCP port 3232) is already included for when the receiver is added in a future release. `CONFIG_OTA_ALLOW_HTTP=y` in `sdkconfig.defaults` enables the *OTA client* to accept HTTP sources but does not start an OTA listener server.
 
 Use one of these methods to update firmware today:
 

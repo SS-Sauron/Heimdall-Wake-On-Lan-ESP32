@@ -52,7 +52,7 @@ Heimdall is a complete remote power management and network security tool built f
 
 ## ✦ Features
 
-| | Feature |
+| Icon | Feature |
 |---|---|
 | 🌐 | **Captive Portal Provisioning** — Connect, configure, done. Full DNS redirect on iOS, Android & Windows |
 | 🔐 | **Three Build Presets** — STANDARD (full), HARDENED (OPSEC + convenience), HARDENED STEALTH (minimal footprint) |
@@ -64,10 +64,10 @@ Heimdall is a complete remote power management and network security tool built f
 | 🏷️ | **Custom Hostname** — Set your own device name, synced to DHCP, mDNS, and NetBIOS |
 | 🏓 | **Ping Feedback** — Optionally confirm PC awake status via ICMP echo requests |
 | 🔌 | **GPIO Output Control** — Remotely toggle specific ESP32 pins (e.g. for physical relays). Secured by TOTP in HARDENED builds |
-| 🛡️ | **SecureOn Password** — Wake modern motherboards that require a 6-byte SecureOn password appended to the magic packet |
+| 🔒 | **SecureOn Password** — Wake modern motherboards that require a 6-byte SecureOn password appended to the magic packet |
 | 💤 | **PC Sleep Companion** — Includes a cross-platform companion script to securely put your PC to sleep remotely via MQTT |
 | 💡 | **Status LED** — Visual feedback for portal, connecting, ready, and wake-sent states |
-| 🔁 | **Crash Loop Detection** — Counts consecutive firmware crashes in NVS and automatically falls back to the captive portal after 5 panics |
+| 🔁 | **Crash Loop Detection** — Counts consecutive firmware crashes in RTC memory and automatically falls back to the captive portal after 3 consecutive panics (counter resets on power loss) |
 | 🌍 | **Web Flasher** — Flash firmware directly from your browser via USB. No IDE or toolchain required |
 
 ---
@@ -276,7 +276,8 @@ I (5002) mqtt_relay: Subscription confirmed (msg_id=22951)
 
 If the log reaches `MQTT connected` and `Subscription confirmed`, Heimdall is online and waiting for wake commands on the command topic shown above.
 
-> 📁 For detailed configuration, security hardening, TOTP setup, OTA instructions, and future feature planning — see the [`/docs`](docs/) folder and [roadmap](docs/heimdall_feature_roadmap.md).
+> [!NOTE]
+> For detailed configuration, security hardening, TOTP setup, OTA instructions, and future feature planning — see the [`/docs`](docs/) folder and [roadmap](docs/heimdall_feature_roadmap.md).
 
 ---
 
@@ -470,7 +471,7 @@ Heimdall provides real-time visual feedback using the ESP32's built-in LED (GPIO
 Heimdall uses a dual-slot OTA partition table with automatic rollback. If the new firmware crashes on boot or fails to reach the MQTT broker, the bootloader automatically reverts to the previous working slot.
 
 > [!NOTE]
-> **Wireless OTA push is not yet implemented.** The OTA receiver task (listening on port 3232 for `espota.py` pushes) is planned for a future release. For now, use one of the following methods to update the firmware:
+> **The firmware-side OTA receiver task is not yet implemented.** The device cannot yet accept wireless firmware pushes over the network. The companion `scripts/ota_push.sh` helper (which uses `espota.py` on TCP port 3232) is already included for when the receiver is added in a future release. For now, use one of the following methods to update the firmware:
 >
 > - **[Web Flasher](https://ss-sauron.github.io/Heimdall-Wake-On-Lan-ESP32/)** — Flash directly from your browser over USB. No tools required.
 > - **`idf.py flash`** — Rebuild from source and flash over USB with the ESP-IDF toolchain.
@@ -509,12 +510,14 @@ Heimdall/
 ├── experimental/       # Sandbox for upcoming features and design files
 ├── main/               # Boot sequence & orchestration
 ├── resources/          # README images and visual design assets
-├── scripts/            # MQTT trigger helpers and Windows WoL setup helper
+├── scripts/            # MQTT trigger helpers, Windows WoL setup, OTA push helper,
+│                       # and PC sleep companion (sleep_listener.py / .exe)
 ├── .clangd             # IDE language server config (clangd + ESP-IDF/GCC compatibility)
 ├── partitions.csv      # OTA-ready dual-slot partition table
 ├── sdkconfig.defaults  # Baseline Kconfig configuration for STANDARD profile
 ├── sdkconfig.hardened  # Kconfig overrides for the HARDENED profile
-└── sdkconfig.hardened.stealth  # Stealth toggles layered on HARDENED
+├── sdkconfig.hardened.stealth  # Stealth toggles layered on HARDENED
+└── sleep_listener.spec # PyInstaller spec used to build the sleep_listener.exe binary
 ```
 
 ---
