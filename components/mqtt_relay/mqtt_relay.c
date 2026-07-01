@@ -303,10 +303,12 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base,
         status_led_set_state(STATUS_LED_STATE_READY);
         ESP_LOGI(TAG, "MQTT connected — subscribing to: %s", s_cmd_topic);
         esp_mqtt_client_subscribe(client, s_cmd_topic, 1);
+#if CONFIG_WOL_RESPONSE_CHANNEL
         /* Publish "online" to status topic with retain so home automation
          * systems that reconnect immediately see the current device state */
         esp_mqtt_client_publish(client, s_status_topic,
                                 "{\"status\":\"online\"}", 0, 1, true);
+#endif
         break;
 
     case MQTT_EVENT_DISCONNECTED:
@@ -526,6 +528,7 @@ void mqtt_relay_start(void)
         .session = {
             .keepalive = CONFIG_MQTT_RELAY_KEEPALIVE_SEC,
             .disable_clean_session = false,
+#if CONFIG_WOL_RESPONSE_CHANNEL
             /* Last-will message: broker marks device "offline" on dropout */
             .last_will = {
                 .topic = s_status_topic,
@@ -534,6 +537,7 @@ void mqtt_relay_start(void)
                 .qos = 1,
                 .retain = true,
             },
+#endif
         },
         .network = {
             .reconnect_timeout_ms = CONFIG_MQTT_RELAY_RECONNECT_TIMEOUT_MS,

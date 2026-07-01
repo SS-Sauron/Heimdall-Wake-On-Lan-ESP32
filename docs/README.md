@@ -4,6 +4,8 @@ This document explains how Heimdall works internally: its architecture, boot seq
 
 Future feature ideas and viability notes live in the [Heimdall Feature Roadmap](heimdall_feature_roadmap.md).
 
+Web Flasher presets and source-build commands: [Build Profiles Guide](build_profiles.md).
+
 All commands, MAC addresses, broker names, and secrets shown here are placeholders. Do not commit real WiFi credentials, MQTT credentials, HMAC secrets, TOTP seeds, broker hostnames, or device MAC addresses to this repository.
 
 ---
@@ -283,13 +285,13 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 
 | Event | Action |
 |---|---|
-| `MQTT_EVENT_CONNECTED` | Subscribe to command topic (QoS 1), publish `{"status":"online"}` retained to **status topic** |
+| `MQTT_EVENT_CONNECTED` | Subscribe to command topic (QoS 1); publish `{"status":"online"}` retained to **status topic** (`CONFIG_WOL_RESPONSE_CHANNEL=y` only — skipped in Hardened Stealth) |
 | `MQTT_EVENT_SUBSCRIBED` | Call `esp_ota_mark_app_valid_cancel_rollback()` — firmware proven functional |
-| `MQTT_EVENT_DATA` | Detect command type (WoL or GPIO) → validate (TOTP if HARDENED) → dispatch → publish result to **status topic** |
+| `MQTT_EVENT_DATA` | Detect command type (WoL or GPIO) → validate (TOTP if HARDENED) → dispatch → publish result to **status topic** (`CONFIG_WOL_RESPONSE_CHANNEL=y` only) |
 | `MQTT_EVENT_DISCONNECTED` | Log only — client auto-reconnects |
 | `MQTT_EVENT_ERROR` | Log TLS/TCP details; on `CONNECTION_REFUSED` with bad-credentials code → `storage_erase_all()` + reboot |
 
-**Status topic payload** (retained, QoS 1) — published after each WoL or GPIO command:
+**Status topic payload** (retained, QoS 1) — published after each WoL or GPIO command (`CONFIG_WOL_RESPONSE_CHANNEL=y` builds only; suppressed in Hardened Stealth):
 ```json
 {
   "mac": "AA:BB:CC:DD:EE:FF",
@@ -297,7 +299,7 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 }
 ```
 
-**Log topic payload** (unretained, QoS 0) — published on connect and periodically by the health monitor:
+**Log topic payload** (unretained, QoS 0) — published on connect and periodically by the health monitor (`CONFIG_WOL_RESPONSE_CHANNEL=y` builds only; suppressed in Hardened Stealth):
 ```json
 {
   "free_heap": 187432,
@@ -305,7 +307,7 @@ The operational core. Runs indefinitely after WiFi is connected. Uses the `esp-m
 }
 ```
 
-**GPIO confirmation payload** (status topic, QoS 1):
+**GPIO confirmation payload** (status topic, QoS 1; `CONFIG_WOL_GPIO_COMMANDS=y` and `CONFIG_WOL_RESPONSE_CHANNEL=y` only; both suppressed in Hardened Stealth):
 ```json
 {"action": "gpio", "pin": 4, "level": 1, "status": "ok"}
 ```
@@ -352,20 +354,24 @@ Provides visual feedback using a single GPIO pin. By default, this uses the ESP3
 
 ## Build Profiles
 
-Profiles are selected via `idf.py menuconfig` or by setting Kconfig symbols in `sdkconfig.defaults`.
+Profiles are selected via `idf.py menuconfig`, `SDKCONFIG_DEFAULTS` fragments, or the [Web Flasher](index.html). See [Build Profiles Guide](build_profiles.md) for preset comparison and build commands.
 
-**STANDARD** — Default. No OPSEC features active. MQTT topics are human-readable:
+**STANDARD** — Default (`sdkconfig.defaults`). No OPSEC features active. Ping feedback and GPIO enabled. MQTT topics are human-readable:
 ```text
 Command topic: wol/AA:BB:CC:DD:EE:FF
 Status topic:  wol/AA:BB:CC:DD:EE:FF/s
 Log topic:     wol/AA:BB:CC:DD:EE:FF/l
 ```
 
-**HARDENED** — Enable by setting `CONFIG_WOL_PROFILE_HARDENED=y` or individually enabling the OPSEC Kconfig options. All four OPSEC features activate:
+**HARDENED (Full)** — Layer `sdkconfig.hardened` on defaults. All four OPSEC features activate:
 - `CONFIG_OPSEC_IDENTITY_SPOOF_MAC=y`
 - `CONFIG_OPSEC_IDENTITY_FAKE_HOSTNAME=y`
 - `CONFIG_OPSEC_HMAC_TOPIC=y`
 - `CONFIG_OPSEC_TOTP=y`
+
+Inherits Standard optional features (ping, GPIO, LED, MQTT response channel).
+
+**HARDENED STEALTH** — Layer `sdkconfig.hardened.stealth` on Hardened. Same OPSEC core; disables ping, LED, GPIO, serial provision output, MQTT response channel (including online/LWT presence), legacy `/r` topic, and suppresses app/bootloader logs. Operational stealth only — not ESP-IDF Secure Boot or Flash Encryption.
 
 **CUSTOM** — All features off by default. Configure each option individually via `idf.py menuconfig`. For advanced users who want a specific combination of features without enabling the full HARDENED set.
 
@@ -379,7 +385,8 @@ Key Kconfig symbols. All configurable via `idf.py menuconfig`.
 |---|---|---|
 | `CONFIG_WOL_FACTORY_RESET_HOLD_MS` | 5000 | Button hold time in ms (range: 3000–15000) |
 | `CONFIG_WOL_BROADCAST_PORT` | 9 | UDP port for magic packets |
-| `CONFIG_WOL_RESPONSE_CHANNEL` | y | Publish JSON confirmation after each wake |
+| `CONFIG_WOL_RESPONSE_CHANNEL` | y | Wake confirmations on `/s`, diagnostics on `/l`, retained online/LWT on `/s` |
+| `CONFIG_WOL_SERIAL_PROVISION_INFO` | y | Print portal password to serial during provisioning |
 | `CONFIG_WIFI_STA_MAX_RETRY` | 10 | Wrong-credential strikes before portal fallback |
 | `CONFIG_WIFI_STA_ABSOLUTE_TIMEOUT_MINUTES` | 30 | Per-boot WiFi timeout (slow path) |
 | `CONFIG_WIFI_STA_ABSOLUTE_TIMEOUT_MAX_REBOOTS` | 7 | Max slow-path reboots before credential erase |
@@ -395,8 +402,8 @@ Key Kconfig symbols. All configurable via `idf.py menuconfig`.
 | `CONFIG_PORTAL_AP_MAX_CONN` | 1 | Maximum simultaneous provisioning clients |
 | `CONFIG_PORTAL_TIMEOUT_SEC` | 180 | Portal timeout in seconds (0 = wait forever) |
 | `CONFIG_STORAGE_NVS_NAMESPACE` | wol | NVS namespace used for all persisted configuration |
-| `CONFIG_WOL_PING_FEEDBACK` | n | Enable ICMP ping after WoL to confirm machine boot |
-| `CONFIG_WOL_GPIO_COMMANDS` | n | Enable GPIO pin control via MQTT JSON commands |
+| `CONFIG_WOL_PING_FEEDBACK` | y (Standard) | Enable ICMP ping after WoL to confirm machine boot |
+| `CONFIG_WOL_GPIO_COMMANDS` | y (Standard) | Enable GPIO pin control via MQTT JSON commands |
 | `CONFIG_WOL_GPIO_ALLOWED_PINS` | "4,5" | Comma-separated list of pins that may be driven remotely |
 | `CONFIG_WOL_STATUS_LED` | y | Enable visual status LED feedback |
 | `CONFIG_WOL_STATUS_LED_PIN` | 2 | GPIO pin used for the status LED |
@@ -436,7 +443,7 @@ For TLS connections, the broker URI hostname is also used for certificate hostna
 
 ### Last Will & Testament
 
-On connection, Heimdall registers a LWT message:
+When `CONFIG_WOL_RESPONSE_CHANNEL=y`, Heimdall registers a LWT message on connect:
 ```text
 Topic:   <status_topic>  (e.g. wol/<device-mac>/s)
 Payload: {"status":"offline"}
@@ -453,6 +460,8 @@ Retain:  true
 ```
 
 This means any MQTT client subscribed to the status topic always knows the current device state without polling.
+
+When `CONFIG_WOL_RESPONSE_CHANNEL=n` (Hardened Stealth), no LWT is registered and no retained online message is published.
 
 ### Command Format
 
@@ -612,9 +621,9 @@ Keys `hs` and `ts` are generated once during provisioning and never transmitted 
 Heimdall includes an automated CI/CD pipeline built with GitHub Actions (`.github/workflows/build.yml`) that compiles the firmware and deploys a browser-based Web Flasher to GitHub Pages.
 
 **Architecture:**
-- **Build Matrix:** The workflow compiles both `STANDARD` and `HARDENED` profiles concurrently using the official `esp-idf-ci-action`.
+- **Build Matrix:** The workflow compiles `STANDARD`, `HARDENED`, and `HARDENED STEALTH` profiles concurrently using the official `esp-idf-ci-action`.
 - **ESP Web Tools:** The flasher UI (`docs/index.html`) is built on [ESP Web Tools](https://esphome.github.io/esp-web-tools/), enabling direct-from-browser flashing via Web Serial.
-- **Manifests:** Two JSON manifests (`docs/manifest_standard.json` and `docs/manifest_hardened.json`) map the compiled binaries (`bootloader.bin`, `partition-table.bin`, `heimdall-*.bin`) to their required flash offsets.
+- **Manifests:** Three JSON manifests (`manifest_standard.json`, `manifest_hardened.json`, `manifest_hardened_stealth.json`) map the compiled binaries (`bootloader.bin`, `partition-table.bin`, `heimdall-*.bin`) to their required flash offsets.
 - **Artifact Flattening:** To prevent 404 errors caused by GitHub Actions preserving the build directory structure, all compiled binaries are aggressively flattened into the root artifact directory before upload.
 - **Deployment Mechanics:** Pushing to the `main` branch automatically deploys the Web Flasher to GitHub Pages (which natively satisfies GitHub's default environment protection rules). Pushing a Git tag (`v1.0.0`) automatically creates a GitHub Release and attaches the compiled binaries for manual download.
 

@@ -1,0 +1,25 @@
+{
+  "name": "Heimdall — Hardened Stealth",
+  "version": "1.0",
+  "home_assistant_domain": null,
+  "new_install_skip_erase": false,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "bootloader.bin",
+          "offset": 4096
+        },
+        {
+          "path": "partition-table.bin",
+          "offset": 32768
+        },
+        {
+          "path": "heimdall-hardened-stealth.bin",
+          "offset": 131072
+        }
+      ]
+    }
+  ]
+}

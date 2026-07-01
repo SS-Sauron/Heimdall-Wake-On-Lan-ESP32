@@ -81,3 +81,10 @@ CONFIG_OTA_ALLOW_HTTP=y
 # -----------------------------------------------------------------------------
 CONFIG_WOL_PROFILE_STANDARD=y
 
+# -----------------------------------------------------------------------------
+# Standard build optional features (enabled for Web Flasher / plug-and-play)
+# Status LED, response channel, and legacy /r topic default to y in Kconfig.
+# -----------------------------------------------------------------------------
+CONFIG_WOL_PING_FEEDBACK=y
+CONFIG_WOL_GPIO_COMMANDS=y
+

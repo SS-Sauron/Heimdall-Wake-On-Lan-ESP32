@@ -1,0 +1,24 @@
+# =============================================================================
+# wol_relay — sdkconfig.hardened.stealth
+# Hardened Stealth profile — layered on top of sdkconfig.hardened via:
+#   SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.hardened;sdkconfig.hardened.stealth"
+#
+# Operational stealth (reduced LAN/MQTT/physical footprint). This is NOT
+# ESP-IDF Secure Boot, Flash Encryption, or NVS encryption.
+# OPSEC core (HMAC topics, TOTP, MAC spoof, fake hostname) stays ON via
+# sdkconfig.hardened — do not override those symbols here.
+# =============================================================================
+
+# --- Tier A: stealth toggles ---
+CONFIG_WOL_PING_FEEDBACK=n
+CONFIG_WOL_STATUS_LED=n
+CONFIG_WOL_SERIAL_PROVISION_INFO=n
+CONFIG_WOL_RESPONSE_CHANNEL=n
+
+# --- Tier B: reduced optional surface ---
+CONFIG_WOL_LEGACY_RSP_TOPIC=n
+CONFIG_WOL_GPIO_COMMANDS=n
+
+# --- Espressif production logging (minimal serial output) ---
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y

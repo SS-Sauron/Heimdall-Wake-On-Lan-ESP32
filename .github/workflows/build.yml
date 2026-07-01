@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 jobs:
-  # ── Job 1: Build firmware (matrix: standard + hardened) ──────────────────────
+  # ── Job 1: Build firmware (matrix: standard + hardened + hardened-stealth) ─────
   build:
     name: Build Firmware (${{ matrix.profile }})
     runs-on: ubuntu-latest
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [ standard, hardened ]
+        profile: [ standard, hardened, hardened-stealth ]
         include:
           - profile: standard
             sdkconfig_defaults: sdkconfig.defaults
@@ -31,6 +31,10 @@ jobs:
             sdkconfig_defaults: sdkconfig.defaults;sdkconfig.hardened
             artifact_name: heimdall-hardened-firmware
             bin_name: heimdall-hardened.bin
+          - profile: hardened-stealth
+            sdkconfig_defaults: sdkconfig.defaults;sdkconfig.hardened;sdkconfig.hardened.stealth
+            artifact_name: heimdall-hardened-stealth-firmware
+            bin_name: heimdall-hardened-stealth.bin
 
     steps:
       - name: Checkout repository
@@ -98,6 +102,12 @@ jobs:
           name: heimdall-hardened-firmware-${{ github.sha }}
           path: artifacts/hardened
 
+      - name: Download hardened-stealth firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: heimdall-hardened-stealth-firmware-${{ github.sha }}
+          path: artifacts/hardened-stealth
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -107,6 +117,11 @@ jobs:
             artifacts/standard/partition-table.bin
             artifacts/standard/heimdall-standard.bin
             artifacts/hardened/heimdall-hardened.bin
+            artifacts/hardened-stealth/heimdall-hardened-stealth.bin
+        # bootloader.bin and partition-table.bin are taken from the standard
+        # artifact only. Each profile's full set lives in its own subdirectory
+        # above so a future profile with a different partition layout won't
+        # silently overwrite the shared binaries.
 
   # ── Job 3: Prepare Pages Artifact ─────────────────────────────────────────────
   prepare-pages:
@@ -119,17 +134,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Download each profile into its own staging directory so that
+      # bootloader.bin / partition-table.bin are never silently overwritten.
+      # The copy step below flattens only the required files into docs/.
       - name: Download standard firmware artifacts
         uses: actions/download-artifact@v4
         with:
           name: heimdall-standard-firmware-${{ github.sha }}
-          path: docs
+          path: staging/standard
 
       - name: Download hardened firmware artifacts
         uses: actions/download-artifact@v4
         with:
           name: heimdall-hardened-firmware-${{ github.sha }}
-          path: docs
+          path: staging/hardened
+
+      - name: Download hardened-stealth firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: heimdall-hardened-stealth-firmware-${{ github.sha }}
+          path: staging/hardened-stealth
+
+      - name: Copy firmware binaries into docs/
+        run: |
+          # Shared binaries — taken from standard (all profiles use the same
+          # bootloader and partition table today; update this step if that changes)
+          cp staging/standard/bootloader.bin        docs/bootloader.bin
+          cp staging/standard/partition-table.bin   docs/partition-table.bin
+          # Per-profile application binaries
+          cp staging/standard/heimdall-standard.bin                   docs/heimdall-standard.bin
+          cp staging/hardened/heimdall-hardened.bin                   docs/heimdall-hardened.bin
+          cp staging/hardened-stealth/heimdall-hardened-stealth.bin   docs/heimdall-hardened-stealth.bin
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

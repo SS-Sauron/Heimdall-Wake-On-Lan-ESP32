@@ -179,24 +179,24 @@
 
             <!-- Intro text -->
             <p class="text-[#c5c7c8] text-center mb-10 max-w-2xl text-lg">
-                Install Heimdall directly to your ESP32 from your browser. <br>
+                Install Heimdall directly to your ESP32 from your browser. Choose one of three presets below. <br>
                 <span class="text-oracle-gold">Check the "Erase device" box during installation if you are flashing for the first time or want to reset your Captive Portal credentials.</span>
             </p>
 
             <!-- Profiles Container -->
-            <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+            <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                 
                 <!-- Standard Profile -->
                 <div class="border border-outline-variant bg-[#0b090d]/80 rounded-xl p-8 shadow-inner relative overflow-hidden flex flex-col items-center text-center">
                     <div class="absolute top-0 left-0 w-full h-1 bg-oracle-gold/40"></div>
                     <span class="material-symbols-outlined text-oracle-gold/70 text-4xl mb-4" style="font-variation-settings: 'FILL' 0, 'wght' 300;">shield</span>
-                    <h2 class="text-2xl font-headline-lg text-oracle-gold mb-2">Standard Profile</h2>
-                    <p class="text-[#a69c8b] font-body-md text-sm mb-6 flex-grow">Plug-and-play defaults for typical home networks.</p>
+                    <h2 class="text-2xl font-headline-lg text-oracle-gold mb-2">Standard</h2>
+                    <p class="text-[#a69c8b] font-body-md text-sm mb-6 flex-grow">Plug-and-play with all optional features enabled.</p>
                     
                     <ul class="text-left w-full text-[#c5c7c8] font-code-sm text-sm space-y-3 mb-8">
                         <li class="flex items-start gap-2"><span class="text-oracle-gold">▹</span> Standard MQTT topics</li>
-                        <li class="flex items-start gap-2"><span class="text-oracle-gold">▹</span> No authentication on MQTT commands</li>
-                        <li class="flex items-start gap-2"><span class="text-oracle-gold">▹</span> Uses default device MAC address</li>
+                        <li class="flex items-start gap-2"><span class="text-oracle-gold">▹</span> Ping feedback + GPIO + status LED</li>
+                        <li class="flex items-start gap-2"><span class="text-oracle-gold">▹</span> No TOTP on wake commands</li>
                     </ul>
 
                     <div class="mt-auto relative z-20">
@@ -204,22 +204,41 @@
                     </div>
                 </div>
 
-                <!-- Hardened Profile -->
+                <!-- Hardened Profile (Full) -->
                 <div class="border border-outline-variant bg-[#0b090d]/80 rounded-xl p-8 shadow-inner relative overflow-hidden flex flex-col items-center text-center">
                     <div class="absolute top-0 left-0 w-full h-1 bg-hazard-red/40 animate-pulse"></div>
                     <span class="material-symbols-outlined text-hazard-red/70 text-4xl mb-4" style="font-variation-settings: 'FILL' 0, 'wght' 300;">local_police</span>
-                    <h2 class="text-2xl font-headline-lg text-hazard-red mb-2">Hardened Profile</h2>
-                    <p class="text-[#a69c8b] font-body-md text-sm mb-6 flex-grow">Maximum OPSEC for hostile environments.</p>
+                    <h2 class="text-2xl font-headline-lg text-hazard-red mb-2">Hardened (Full)</h2>
+                    <p class="text-[#a69c8b] font-body-md text-sm mb-6 flex-grow">Full OPSEC plus all optional convenience features.</p>
                     
                     <ul class="text-left w-full text-[#c5c7c8] font-code-sm text-sm space-y-3 mb-8">
-                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> HMAC-derived stealth MQTT topics</li>
-                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> Time-based One-Time Password (TOTP) auth</li>
-                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> MAC Address Spoofing</li>
-                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> Hostname Obfuscation</li>
+                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> HMAC topics + TOTP auth</li>
+                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> MAC spoof + hostname obfuscation</li>
+                        <li class="flex items-start gap-2"><span class="text-hazard-red">▹</span> Ping, GPIO, LED, MQTT responses</li>
                     </ul>
 
                     <div class="mt-auto relative z-20">
                         <esp-web-install-button manifest="manifest_hardened.json"></esp-web-install-button>
+                    </div>
+                </div>
+
+                <!-- Hardened Stealth Profile -->
+                <div class="border border-outline-variant bg-[#0b090d]/80 rounded-xl p-8 shadow-inner relative overflow-hidden flex flex-col items-center text-center">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-ethereal-blue/40"></div>
+                    <span class="material-symbols-outlined text-ethereal-blue/70 text-4xl mb-4" style="font-variation-settings: 'FILL' 0, 'wght' 300;">visibility_off</span>
+                    <h2 class="text-2xl font-headline-lg text-ethereal-blue mb-2">Hardened Stealth</h2>
+                    <p class="text-[#a69c8b] font-body-md text-sm mb-6 flex-grow">OPSEC core with minimal LAN, MQTT, and physical footprint.</p>
+                    
+                    <ul class="text-left w-full text-[#c5c7c8] font-code-sm text-sm space-y-3 mb-8">
+                        <li class="flex items-start gap-2"><span class="text-ethereal-blue">▹</span> Same HMAC + TOTP + identity as Hardened</li>
+                        <li class="flex items-start gap-2"><span class="text-ethereal-blue">▹</span> No status LED, ping, or GPIO</li>
+                        <li class="flex items-start gap-2"><span class="text-ethereal-blue">▹</span> No MQTT wake confirmations or presence</li>
+                    </ul>
+
+                    <p class="text-[#a69c8b] font-code-sm text-xs mb-4">Stealth reduces observability — you will not receive wake confirmation over MQTT.</p>
+
+                    <div class="mt-auto relative z-20">
+                        <esp-web-install-button manifest="manifest_hardened_stealth.json"></esp-web-install-button>
                     </div>
                 </div>
 

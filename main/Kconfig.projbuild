@@ -76,10 +76,14 @@ menu "WoL Relay"
             When enabled, the ESP32 publishes a confirmation message to a
             separate response topic every time it broadcasts a Magic Packet.
             The response includes the target MAC address, a timestamp, and
-            a status code.
+            a status code. Also publishes retained online/offline presence
+            on the status topic (/s) and periodic diagnostics on the log
+            topic (/l).
 
             The response topic is derived the same way as the command topic
             (HMAC if OPSEC is on, plain string if not).
+
+            Disable for Hardened Stealth builds to reduce MQTT telemetry.
 
     # -------------------------------------------------------------------------
     # Serial provisioning output
@@ -92,7 +96,8 @@ menu "WoL Relay"
         help
             Prints the portal AP password (and HMAC topic if hardened build)
             to the serial console during first boot. Useful for initial setup.
-            Disable this option before distributing devices to others or
-            deploying in shared physical spaces.
+            Disable this option before distributing devices to others,
+            deploying in shared physical spaces, or building Hardened Stealth
+            firmware.
 
 endmenu

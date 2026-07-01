@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-30
+
+### Added
+
+- **Hardened Stealth** build preset (`sdkconfig.hardened.stealth`) with reduced LAN, MQTT,
+  and physical footprint while keeping full OPSEC core (HMAC topics, TOTP, identity obfuscation).
+- Third Web Flasher preset and manifest (`manifest_hardened_stealth.json`, `heimdall-hardened-stealth.bin`).
+- [Build profiles guide](docs/build_profiles.md) for Web Flasher presets and source-build commands.
+
+### Changed
+
+- Standard build (`sdkconfig.defaults`) now explicitly enables ping feedback and GPIO commands by default.
+- MQTT retained online status and Last Will Testament gated behind `CONFIG_WOL_RESPONSE_CHANNEL`
+  (disabled in Hardened Stealth).
+- CI matrix expanded to three parallel build jobs (standard, hardened, hardened-stealth).
+- Web Flasher upgraded to three-column preset picker (Standard, Hardened Full, Hardened Stealth).
+- `build.yml` Pages job now stages each profile in its own subdirectory before flattening into `docs/`
+  to prevent silent overwrite of shared bootloader/partition-table binaries.
+- README and technical docs updated with per-feature Stealth caveats across all affected sections.
+- `Kconfig.projbuild` help text updated to reference Hardened Stealth for `WOL_RESPONSE_CHANNEL`
+  and `WOL_SERIAL_PROVISION_INFO`.
+
 ## [0.3.0] - 2026-06-21
 
 ### Added

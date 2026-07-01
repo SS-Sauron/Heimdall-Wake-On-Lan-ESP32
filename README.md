@@ -10,7 +10,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-v0.4.5-blueviolet?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/releases)
+[![Version](https://img.shields.io/badge/version-v0.5.0-blueviolet?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/SS-Sauron/Heimdall/build.yml?style=for-the-badge)](https://github.com/SS-Sauron/Heimdall/actions/workflows/build.yml)
 [![Web Flasher](https://img.shields.io/badge/Web%20Flasher-Live-brightgreen?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ss-sauron.github.io/Heimdall/)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v6.0.1-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://idf.espressif.com/)
@@ -49,7 +49,7 @@ You send a command. Heimdall wakes your machine. That's it.
 | | Feature |
 |---|---|
 | 🌐 | **Captive Portal Provisioning** — Connect, configure, done. Full DNS redirect on iOS, Android & Windows |
-| 🔐 | **Two Build Profiles** — STANDARD for simplicity, HARDENED for OPSEC-grade deployments |
+| 🔐 | **Three Build Presets** — STANDARD (full), HARDENED (OPSEC + convenience), HARDENED STEALTH (minimal footprint) |
 | 🔑 | **TOTP Authentication** — RFC 6238 compliant. Every wake command requires a valid one-time code (HARDENED only) |
 | 🕵️ | **Identity Obfuscation** — MAC spoofing, generic device hostname, HMAC-derived opaque MQTT topics (HARDENED only) |
 | 📡 | **Dynamic Broadcast** — Computes the correct broadcast address at runtime. Works on any subnet |
@@ -70,20 +70,23 @@ You send a command. Heimdall wakes your machine. That's it.
 
 <div align="center">
 
-| | STANDARD | HARDENED |
-|---|:---:|:---:|
-| Captive Portal Provisioning | ✅ | ✅ |
-| OTA Dual-Slot Partition | ✅ | ✅ |
-| Self-Healing WiFi Recovery | ✅ | ✅ |
-| Dynamic Broadcast Address | ✅ | ✅ |
-| Ping Feedback (ICMP) | ✅ | ✅ |
-| GPIO Output Control | ✅ | ✅ |
-| SecureOn Password | ✅ | ✅ |
-| Status LED Feedback | ✅ | ✅ |
-| TOTP Command Authentication | ❌ | ✅ |
-| HMAC-Derived MQTT Topics | ❌ | ✅ |
-| MAC Address Spoofing | ❌ | ✅ |
-| Hostname Obfuscation | ❌ | ✅ |
+| | STANDARD | HARDENED | HARDENED STEALTH |
+|---|:---:|:---:|:---:|
+| Captive Portal Provisioning | ✅ | ✅ | ✅ |
+| OTA Dual-Slot Partition | ✅ | ✅ | ✅ |
+| Self-Healing WiFi Recovery | ✅ | ✅ | ✅ |
+| Dynamic Broadcast Address | ✅ | ✅ | ✅ |
+| Ping Feedback (ICMP) | ✅ | ✅ | ❌ |
+| GPIO Output Control | ✅ | ✅ | ❌ |
+| SecureOn Password | ✅ | ✅ | ✅ |
+| Status LED Feedback | ✅ | ✅ | ❌ |
+| MQTT Response / Presence | ✅ | ✅ | ❌ |
+| TOTP Command Authentication | ❌ | ✅ | ✅ |
+| HMAC-Derived MQTT Topics | ❌ | ✅ | ✅ |
+| MAC Address Spoofing | ❌ | ✅ | ✅ |
+| Hostname Obfuscation | ❌ | ✅ | ✅ |
+
+See [Build Profiles](docs/build_profiles.md) for source-build commands and customization.
 
 </div>
 
@@ -108,7 +111,7 @@ The easiest way to install Heimdall is directly from your browser using the offi
 
 1. Connect your ESP32 to your computer via USB.
 2. Open the link above in a supported browser (Chrome, Edge, or Opera).
-3. Choose your desired build profile (Standard or Hardened) and click **Connect**.
+3. Choose your desired build profile (**Standard**, **Hardened (Full)**, or **Hardened Stealth**) and click **Connect**.
 4. Select the COM port for your ESP32.
 5. Click **Install Heimdall** and wait for the flash to complete.
 
@@ -150,13 +153,23 @@ idf.py set-target esp32
 
 **2. Select a build profile (optional)**
 
-The default profile is STANDARD. To switch to HARDENED before building:
+The default profile is STANDARD. To switch to HARDENED or build Stealth from source, see [Build Profiles](docs/build_profiles.md). Quick override before building:
 
 ```bash
 idf.py menuconfig
 ```
 
 Navigate to **WoL Relay → Build Profile**, choose the profile, save, and exit.
+
+For Hardened or Stealth without menuconfig:
+
+```bash
+# Hardened (full)
+SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.hardened" idf.py build
+
+# Hardened Stealth
+SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.hardened;sdkconfig.hardened.stealth" idf.py build
+```
 
 **3. Build, flash, and monitor**
 
@@ -330,6 +343,9 @@ The repository includes ready-to-use Bash scripts that format the MQTT payload a
 
 If your firmware is compiled with `CONFIG_WOL_PING_FEEDBACK=y`, you can include the target PC's IP address in your command. Heimdall will ping the machine and publish an alert when it successfully boots up, or if it times out.
 
+> [!NOTE]
+> Ping feedback is **disabled** in the **Hardened Stealth** preset (`CONFIG_WOL_PING_FEEDBACK=n`). No ICMP is sent to the target PC after a wake command.
+
 **Standard Build (JSON):**
 Send a JSON payload instead of plain text:
 ```json
@@ -346,7 +362,10 @@ AA:BB:CC:DD:EE:FF:123456:192.168.1.100
 
 ### ✦ Response Payload
 
-After dispatching a magic packet, Heimdall publishes a confirmation to the **Status** topic (`/s`):
+> [!NOTE]
+> The MQTT response channel is **disabled** in the **Hardened Stealth** preset (`CONFIG_WOL_RESPONSE_CHANNEL=n`). No confirmation, no `/l` heartbeats, and no retained `online`/`offline` presence are published. This is by design — stealth reduces MQTT observability.
+
+After dispatching a magic packet (Standard and Hardened Full builds), Heimdall publishes a confirmation to the **Status** topic (`/s`):
 
 ```json
 {
@@ -386,9 +405,12 @@ If Ping Feedback was requested, you will receive a *second* message on the **Sta
 
 ### ✦ GPIO Output Control
 
-If your firmware is compiled with `CONFIG_WOL_GPIO_COMMANDS=y`, you can control specific GPIO pins on the ESP32 by publishing a JSON payload to the main command topic. 
+If your firmware is compiled with `CONFIG_WOL_GPIO_COMMANDS=y`, you can control specific GPIO pins on the ESP32 by publishing a JSON payload to the main command topic.
 
 Only pins listed in `CONFIG_WOL_GPIO_ALLOWED_PINS` can be controlled.
+
+> [!NOTE]
+> GPIO commands are **disabled** in the **Hardened Stealth** preset (`CONFIG_WOL_GPIO_COMMANDS=n`).
 
 **Standard Build (JSON):**
 ```json
@@ -423,7 +445,10 @@ Any RFC 6238-compatible authenticator app or trigger script can generate codes f
 
 ### ✦ Status LED Patterns
 
-Heimdall provides real-time visual feedback using the ESP32's built-in LED (GPIO2) out of the box. You also have the option to wire an external LED to a custom pin, or disable the LED completely in the configuration for "stealth" deployments.
+Heimdall provides real-time visual feedback using the ESP32's built-in LED (GPIO2) out of the box. You also have the option to wire an external LED to a custom pin, or disable the LED completely in the configuration for stealth deployments.
+
+> [!NOTE]
+> The status LED is **fully disabled** in the **Hardened Stealth** preset (`CONFIG_WOL_STATUS_LED=n`). The device shows no visual activity in any state.
 
 | State | LED Pattern | Description |
 |---|---|---|
@@ -482,7 +507,8 @@ Heimdall/
 ├── .clangd             # IDE language server config (clangd + ESP-IDF/GCC compatibility)
 ├── partitions.csv      # OTA-ready dual-slot partition table
 ├── sdkconfig.defaults  # Baseline Kconfig configuration for STANDARD profile
-└── sdkconfig.hardened  # Kconfig overrides for the HARDENED profile
+├── sdkconfig.hardened  # Kconfig overrides for the HARDENED profile
+└── sdkconfig.hardened.stealth  # Stealth toggles layered on HARDENED
 ```
 
 ---
@@ -491,12 +517,12 @@ Heimdall/
 
 Every push to `main` triggers an automated GitHub Actions workflow that:
 
-- **Builds** both STANDARD and HARDENED firmware profiles in parallel using the official Espressif ESP-IDF Docker image.
+- **Builds** STANDARD, HARDENED, and HARDENED STEALTH firmware profiles in parallel using the official Espressif ESP-IDF Docker image.
 - **Deploys** the Web Flasher to GitHub Pages, bundling the freshly compiled `.bin` files alongside the flasher UI so users can always flash the latest code from their browser.
 
 Every Git tag (`v1.0.0`) additionally:
 
-- **Creates a GitHub Release** and attaches the compiled `heimdall-standard.bin` and `heimdall-hardened.bin` as downloadable artifacts.
+- **Creates a GitHub Release** and attaches the compiled `heimdall-standard.bin`, `heimdall-hardened.bin`, and `heimdall-hardened-stealth.bin` as downloadable artifacts.
 
 ---
 
